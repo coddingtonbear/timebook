@@ -214,9 +214,10 @@ Display a given timesheet. If no timesheet is specified, show the
 current timesheet.''')
         opts, args = parser.parse_args(args=args)
         if args:
-            sheet_name, sheet = complete(self.sheets, args[0], 'timesheet')
+            sheet_name = complete(self, args[0], 'timesheet')
         else:
-            sheet_name, sheet = self._current, self[self._current]
+            sheet_name = self._current
+        sheet = self[sheet_name]
         print 'Timesheet %s:' % sheet_name
         if not sheet:
             print '(empty)'
@@ -264,8 +265,7 @@ starting the timer.')
             self.switch([opts.switch])
         sheet = self[self._current]
         if sheet.active:
-            print 'error: timesheet already active'
-            raise SystemExit(1)
+            raise SystemExit, 'error: timesheet already active'
         sheet.append(Entry(now, None, ' '.join(args), extra))
         self.save()
 
@@ -330,10 +330,9 @@ the period that the stop command ends.')
         now = int(time.time())
         sheet = self[self._current]
         if not sheet.active:
-            print 'error: timesheet not active'
-            raise SystemExit(1)
+            raise SystemExit, 'error: timesheet not active'
         if opts.verbose:
-            print running(sheet)
+            print sheet.running
         sheet[-1].end = now
         self.save()
 
@@ -347,8 +346,7 @@ timesheet.''')
 
         sheet = self[self._current]
         if not self.active:
-            print 'error: timesheet not active'
-            raise SystemExit(1)
+            raise SystemExit, 'error: timesheet not active'
         self[self._current][-1].desc = ' '.join(args)
         self.save()
 
@@ -460,7 +458,7 @@ def subdirs(path):
         last = path.find(os.path.sep, last + 1)
 
 def pprint_table(table):
-    widths = [3 + max([len(row[col]) for row in table])
+    widths = [3 + max([len(row[col]) for row in table[:-1]])
               for col in xrange(len(table[0]))]
     for row in table:
         print ''.join([cell + ' ' * (spacing - len(cell))

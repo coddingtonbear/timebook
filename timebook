@@ -440,8 +440,9 @@ def complete(it, lookup, key_desc):
             return i
         if i.startswith(lookup):
             if partial_match is not None:
-                raise AmbiguousLookup('ambiguous %s %r' %
-                                      (key_desc, lookup))
+                matches = sorted(i for i in it if i.startswith(lookup))
+                raise AmbiguousLookup('ambiguous %s %r:' %
+                                      (key_desc, lookup), matches)
             partial_match = i
     if partial_match is None:
         raise NoMatch('no such %s %r.' % (key_desc, lookup))
@@ -499,7 +500,13 @@ def main():
     config = parse_config(options.config)
     book = Timebook(options, config)
     cmd, args = args[0], args[1:]
-    book.run_command(cmd, args)
+    try:
+        book.run_command(cmd, args)
+    except NoMatch:
+        raise SystemExit, 'error: unknown command %r' % cmd
+    except AmbiguousLookup, e:
+        raise SystemExit, 'error: %s\n    %s' % (e.args[0],
+                                                 ' '.join(e.args[1]))
 
 if __name__ == '__main__':
     main()

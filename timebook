@@ -462,8 +462,10 @@ def pprint_table(table):
     widths = [3 + max([len(row[col]) for row in table[:-1]])
               for col in xrange(len(table[0]))]
     for row in table:
-        print ''.join([cell + ' ' * (spacing - len(cell))
-                       for (cell, spacing) in zip(row, widths)])
+        # Don't pad the final column
+        first_cols = [cell + ' ' * (spacing - len(cell))
+                      for (cell, spacing) in zip(row[:-1], widths[:-1])]
+        print ''.join(first_cols + [row[-1]])
 
 def parse_options():
     from optparse import OptionParser

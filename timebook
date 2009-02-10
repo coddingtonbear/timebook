@@ -73,6 +73,12 @@ class Entry(object):
         desc = '' if self.desc is None else ' %r' % self.desc
         return '<Entry%s>' % (desc)
 
+    def to_csv(self):
+        format = lambda t: datetime.fromtimestamp(t).strftime(
+            '%m/%d/%Y %H:%M:%S')
+        duration = self.end - self.start
+        return (format(self.start), format(self.end), duration, self.desc)
+
     def serialize(self):
         return tuple(self)
 
@@ -106,8 +112,8 @@ class Timesheet(list):
         from bisect import bisect
 
         now = datetime.now()
-        midnight = int(time.mktime(datetime(now.year, now.month,
-                                            now.day).timetuple()))
+        midnight = datetime_to_int(datetime(now.year, now.month,
+                                            now.day))
         first_item_today = bisect([r.start for r in self], midnight)
         today = self[first_item_today:]
         return today.total
@@ -419,12 +425,13 @@ has been active and what notes are associated with the current
 period.
 
 If a specific timesheet is given, display the same information for that
-timesheet instaed.''')
+timesheet instead.''')
         opts, args = parser.parse_args(args=args)
         if args:
-            sheet_name, sheet = complete(self, args[0], 'timesheet')
+            sheet_name = complete(self, args[0], 'timesheet')
         else:
-            sheet_name, sheet = self._current, self[self._current]
+            sheet_name = self._current
+        sheet = self[sheet_name]
         if sheet.active:
             active = sheet.running + \
                      ' (%s)' % sheet[-1].desc.rstrip('.') \
@@ -432,6 +439,50 @@ timesheet instaed.''')
         else:
             active = 'not active'
         print '%s: %s' % (sheet_name, active)
+
+    @command('export a sheet to csv format')
+    def csv(self, args):
+        from bisect import bisect
+        import csv
+        import sys
+
+        parser = OptionParser(usage='''usage: %prog csv [TIMESHEET]
+
+Export the current sheet as a comma-separated value format spreadsheet.
+
+If a specific timesheet is given, display the same information for that
+timesheet instead.''')
+        parser.add_option('-s', '--start', dest='start', type='string',
+                          metavar='DATE', help='Show only entries \
+starting after 00:00 on this date. The date should be of the format \
+YYYY-MM-DD.')
+        parser.add_option('-e', '--end', dest='end', type='string',
+                          metavar='DATE', help='Show only entries \
+ending before 00:00 on this date. The date should be of the format \
+YYYY-MM-DD.')
+        opts, args = parser.parse_args(args=args)
+        if args:
+            sheet_name = complete(self, args[0], 'timesheet')
+        else:
+            sheet_name = self._current
+        sheet = self[sheet_name]
+
+        fmt = '%Y-%m-%d'
+        if opts.start is not None:
+            start_date = datetime.strptime(opts.start, fmt)
+            start = datetime_to_int(start_date)
+            first_item = bisect([r.start for r in sheet], start)
+            sheet = sheet[first_item:]
+        if opts.end is not None:
+            end_date = datetime.strptime(opts.end, fmt)
+            end = datetime_to_int(end_date)
+            last_item = bisect([r.end for r in sheet], end)
+            sheet = sheet[:last_item]
+        writer = csv.writer(sys.stdout)
+        writer.writerow(('Start', 'End', 'Length', 'Description'))
+        writer.writerows(e.to_csv() for e in sheet)
+        total_formula = '=SUM(C2:C%d)/3600' % (len(sheet) + 1)
+        writer.writerow(('Total', '', total_formula, ''))
 
 def complete(it, lookup, key_desc):
     partial_match = None
@@ -466,6 +517,9 @@ def pprint_table(table):
         first_cols = [cell + ' ' * (spacing - len(cell))
                       for (cell, spacing) in zip(row[:-1], widths[:-1])]
         print ''.join(first_cols + [row[-1]])
+
+def datetime_to_int(dt):
+    return int(time.mktime(dt.timetuple()))
 
 def parse_options():
     from optparse import OptionParser

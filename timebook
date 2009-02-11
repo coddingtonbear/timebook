@@ -22,7 +22,7 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 __author__ = 'Trevor Caira <trevor@caira.com>'
-__version__ = (0, 2, 0)
+__version__ = (0, 2, 1)
 
 import cPickle as pickle
 from ConfigParser import SafeConfigParser
@@ -60,14 +60,11 @@ def command(desc, cmd_aliases=()):
     return decorator
 
 class Entry(object):
-    def __init__(self, start, end, desc, extra=None):
-        self.start, self.end, self.desc, self.extra = \
-            start, end, desc, extra
+    def __init__(self, args):
+        self._tuple = tuple(args)
 
     def __iter__(self):
-        tup = (self.start, self.end, self.desc) + ((self.extra,)
-            if self.extra is not None else ())
-        return iter(tup)
+        return iter(self._tuple)
 
     def __repr__(self):
         desc = '' if self.desc is None else ' %r' % self.desc
@@ -80,11 +77,27 @@ class Entry(object):
         return (format(self.start), format(self.end), duration, self.desc)
 
     def serialize(self):
-        return tuple(self)
+        return self._tuple
+
+    @property
+    def start(self):
+        return self._tuple[0]
+
+    @property
+    def end(self):
+        return self._tuple[1]
+
+    @property
+    def desc(self):
+        return self._tuple[2]
+
+    @property
+    def extra(self):
+        return self._tuple[3]
 
 class Timesheet(list):
     def __init__(self, init=()):
-        super(Timesheet, self).__init__([Entry(*e) for e in init])
+        super(Timesheet, self).__init__(Entry(e) for e in init)
 
     def __getslice__(self, start, end):
         return type(self)(super(Timesheet, self).__getslice__(start, end))
@@ -229,7 +242,7 @@ current timesheet.''')
             print '(empty)'
             return
 
-        date = lambda t: datetime.fromtimestamp(t).strftime('%H:%M:%S')
+        date = lambda t: time.strftime('%H:%M:%S', time.gmtime(t))
         sheet_total = lambda sheet: str(timedelta(seconds=sheet.total))
         last_day = None
         day_start = 0
@@ -272,7 +285,7 @@ starting the timer.')
         sheet = self[self._current]
         if sheet.active:
             raise SystemExit, 'error: timesheet already active'
-        sheet.append(Entry(now, None, ' '.join(args), extra))
+        sheet.append(Entry((now, None, ' '.join(args), extra)))
         self.save()
 
     @command('delete a timesheet')
@@ -510,7 +523,7 @@ def subdirs(path):
         last = path.find(os.path.sep, last + 1)
 
 def pprint_table(table):
-    widths = [3 + max([len(row[col]) for row in table[:-1]])
+    widths = [3 + max(len(row[col]) for row in table[:-1])
               for col in xrange(len(table[0]))]
     for row in table:
         # Don't pad the final column

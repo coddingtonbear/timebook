@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# timebook 0.2 Copyright (c) 2008 Trevor Caira
+# timebook 0.3.0 Copyright (c) 2008-2009 Trevor Caira
 # 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -22,19 +22,20 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 __author__ = 'Trevor Caira <trevor@caira.com>'
-__version__ = (0, 2, 1)
+__version__ = (0, 3, 0)
 
-import cPickle as pickle
 from ConfigParser import SafeConfigParser
 from datetime import datetime, timedelta
 from functools import wraps
 from optparse import OptionParser
 import os
+import sqlite3
+import sys
 import time
 
 confdir = os.path.expanduser(os.path.join('~', '.config', 'timebook'))
 DEFAULTS = {'config': os.path.join(confdir, 'timebook.ini'),
-            'timebook': os.path.join(confdir, 'sheets.dat')}
+            'timebook': os.path.join(confdir, 'sheets.db')}
 
 class AmbiguousLookup(ValueError): pass
 
@@ -59,103 +60,111 @@ def command(desc, cmd_aliases=()):
         return wraps(func)(decorated)
     return decorator
 
-class Entry(object):
-    def __init__(self, args):
-        self._tuple = tuple(args)
-
-    def __iter__(self):
-        return iter(self._tuple)
-
-    def __repr__(self):
-        desc = '' if self.desc is None else ' %r' % self.desc
-        return '<Entry%s>' % (desc)
-
-    def to_csv(self):
-        format = lambda t: datetime.fromtimestamp(t).strftime(
-            '%m/%d/%Y %H:%M:%S')
-        duration = self.end - self.start
-        return (format(self.start), format(self.end), duration, self.desc)
-
-    def serialize(self):
-        return self._tuple
-
-    @property
-    def start(self):
-        return self._tuple[0]
-
-    @property
-    def end(self):
-        return self._tuple[1]
-
-    @property
-    def desc(self):
-        return self._tuple[2]
-
-    @property
-    def extra(self):
-        return self._tuple[3]
-
-class Timesheet(list):
-    def __init__(self, init=()):
-        super(Timesheet, self).__init__(Entry(e) for e in init)
-
-    def __getslice__(self, start, end):
-        return type(self)(super(Timesheet, self).__getslice__(start, end))
-
-    @property
-    def active(self):
-        return self and self[-1].end is None
-
-    @property
-    def running(self):
-        if self.active:
-            diff = int(time.time()) - self[-1].start
-            return str(timedelta(seconds=diff))
-        raise ValueError('sheet not active')
-
-    @property
-    def total(self):
-        return sum([e.end - e.start for e in self
-                    if e.end is not None]) + (int(time.time()) -
-                                              self[-1].start
-                                              if self.active else 0)
-
-    @property
-    def today_total(self):
-        from bisect import bisect
-
-        now = datetime.now()
-        midnight = datetime_to_int(datetime(now.year, now.month,
-                                            now.day))
-        first_item_today = bisect([r.start for r in self], midnight)
-        today = self[first_item_today:]
-        return today.total
-
-    def serialize(self):
-        return [entry.serialize() for entry in self]
-
 class Timebook(dict):
     def __init__(self, options, config):
         self.options = options
         self.config = config
-        unpickled = self.unpickle(options.timebook)
-        self._load(unpickled)
+        self.db = sqlite3.connect(options.timebook, isolation_level=None)
+        self.cursor = self.db.cursor()
+        for attr in ('execute', 'fetchone', 'fetchall'):
+            setattr(self, attr, getattr(self.cursor, attr))
+        self._create_db()
 
-    def _load(self, unpickled):
-        self.clear()
-        if unpickled is None:
-            self._current = 'default'
-            self.update(default=Timesheet())
-        else:
-            self._current = unpickled['current']
-            self.update([(name, Timesheet(s)) for name, s
-                         in unpickled['sheets'].iteritems()])
+    def _create_db(self):
+        self.cursor.executescript(u'''
+        begin;
+        create table if not exists meta (
+            key varchar(16) primary key not null,
+            value varchar(32) not null
+        );
+        create table if not exists entry (
+            id integer primary key not null,
+            sheet varchar(32) not null,
+            start_time integer not null,
+            end_time integer,
+            description varchar(64),
+            extra blob
+        );
+        create index if not exists entry_sheet on entry (sheet);
+        create index if not exists entry_start_time on entry (start_time);
+        create index if not exists entry_end_time on entry (end_time);
+        ''')
+        self.execute(u'''
+        select
+            count(*)
+        from
+            meta
+        where
+            key = 'current_sheet'
+        ''')
+        count = self.fetchone()[0]
+        if count == 0:
+            self.execute(u'''
+            insert into meta (
+                key, value 
+            ) values (
+                'current_sheet', 'default'
+            )''')
+        # TODO: version
+        self.execute(u'commit')
+
+    @property
+    def current_sheet(self):
+        self.execute(u'''
+        select
+            value
+        from
+            meta
+        where
+            key = 'current_sheet'
+        ''')
+        return self.fetchone()[0]
+
+    def get_sheet_names(self):
+        self.execute(u'''
+        select
+            distinct sheet
+        from
+            entry
+        ''')
+        return tuple(r[0] for r in self.fetchall())
+
+    def get_active_info(self, sheet):
+        self.execute(u'''
+        select
+            strftime('%s', 'now') - entry.start_time,
+            entry.description
+        from
+            entry
+        where
+            entry.sheet = ? and
+            entry.end_time is null
+        ''', (sheet,))
+        return self.fetchone()
+
+    def get_current_active_info(self):
+        self.execute(u'''
+        select
+            entry.id,
+            strftime('%s', 'now') - entry.start_time
+        from
+            entry
+        inner join
+            meta
+        on
+            meta.key = 'current_sheet' and
+            meta.value = entry.sheet
+        where
+            entry.end_time is null
+        ''')
+        return self.fetchone()
 
     def pre_hook(self, func_name):
         if self.config.has_section('hooks'):
             hook = self.config['hooks'].get(func_name)
             if hook is not None:
-                mod = __import__(hook, {}, {}, [''])
+                __import__(hook, {}, {}, [])
+                mod = sys.modules[hook]
                 if hasattr(mod, 'pre'):
                     return mod.pre
         return lambda self, args, kwargs: (args, kwargs)
@@ -164,66 +173,27 @@ class Timebook(dict):
         if self.config.has_section('hooks'):
             hook = self.config['hooks'].get(func_name)
             if hook is not None:
-                mod = __import__(hook, {}, {}, [''])
+                __import__(hook, {}, {}, [])
+                mod = sys.modules[hook]
                 if hasattr(mod, 'post'):
                     return mod.post
         return lambda self, res: res
-
-    def unpickle(self, filename):
-        try:
-            f = file(filename)
-        except IOError, e:
-            if e.errno != 2:
-                raise
-            return None
-        try:
-            return pickle.loads(f.read())
-        except EOFError:
-            return None
-        finally:
-            f.close()
-
-    def pformat(self):
-        f = file(self.options.timebook)
-        try:
-            from pprint import PrettyPrinter
-            return PrettyPrinter().pformat(pickle.loads(f.read()))
-        finally:
-            f.close()
 
     def run_command(self, cmd, args):
         func = aliases.get(cmd, None)
         if func is None:
             func = complete(commands, cmd, 'command')
+        self.execute(u'begin')
         getattr(self, func)(args)
+        self.execute(u'commit')
 
-    def save(self):
-        filename = self.options.timebook
-        if not os.path.exists(os.path.basename(filename)):
-            for d in subdirs(filename):
-                if os.path.exists(d):
-                    break
-                else:
-                    os.mkdir(d)
-        pickled = pickle.dumps(self.serialize(), -1)
-        f = file(filename, 'w')
-        try:
-            f.write(pickled)
-        finally:
-            f.close()
-
-    def serialize(self):
-        sheets = dict([(name, sheet.serialize()) for (name, sheet)
-                       in self.iteritems()])
-        return {'current': self._current, 'sheets': sheets}
-
-    @command('dump the timebook data file')
-    def dump(self, args):
+    @command('open an interactive database shell')
+    def shell(self, args):
         parser = OptionParser(usage='''usage: %prog dump
 
-Show the unpickled data file.''')
-        opts, args = parser.parse_args(args=args)
-        print self.pformat()
+Run an interactive database session on the timebook database. Requires
+the sqlite3 command.''')
+        os.execvp('sqlite3', ('sqlite3', self.options.timebook))
 
     @command('show the current timesheet')
     def show(self, args):
@@ -233,40 +203,91 @@ Display a given timesheet. If no timesheet is specified, show the
 current timesheet.''')
         opts, args = parser.parse_args(args=args)
         if args:
-            sheet_name = complete(self, args[0], 'timesheet')
+            sheet = complete(self.get_sheet_names(), args[0], 'timesheet')
         else:
-            sheet_name = self._current
-        sheet = self[sheet_name]
-        print 'Timesheet %s:' % sheet_name
-        if not sheet:
+            sheet = self.current_sheet
+        print 'Timesheet %s:' % sheet
+        self.execute(u'''
+        select count(*) > 0 from entry where sheet = ?
+        ''', (sheet,))
+        if not self.fetchone()[0]:
             print '(empty)'
             return
 
-        date = lambda t: time.strftime('%H:%M:%S', time.gmtime(t))
-        sheet_total = lambda sheet: str(timedelta(seconds=sheet.total))
+        displ_time = lambda t: time.strftime('%H:%M:%S', time.localtime(t))
+        displ_date = lambda t: time.strftime('%b %d, %Y',
+                                             time.localtime(t))
+        displ_total = lambda t: str(timedelta(seconds=t))
         last_day = None
-        day_start = 0
         table = [['Day', 'Start      End', 'Duration', 'Notes']]
-        for i, e in enumerate(sheet):
-            day = datetime.fromtimestamp(e.start).strftime('%b %d, %Y')
-            if e.end is None:
-                diff = str(timedelta(seconds=int(time.time()) - e.start))
-                trange = '%s -' % date(e.start)
+        self.execute(u'''
+        select
+            date(e.start_time, 'unixepoch', 'localtime') as day,
+            ifnull(sum(ifnull(e.end_time, strftime('%s', 'now')) -
+                       e.start_time), 0) as day_total
+        from
+            entry e
+        where
+            e.sheet = ?
+        group by
+            day
+        order by
+            day asc;
+        ''', (sheet,))
+        days = self.fetchall()
+        days_iter = iter(days)
+        self.execute(u'''
+        select
+            date(e.start_time, 'unixepoch', 'localtime') as day,
+            e.start_time as start,
+            e.end_time as end,
+            ifnull(e.end_time, strftime('%s', 'now')) - e.start_time as
+                duration,
+            ifnull(e.description, '') as description
+        from
+            entry e
+        where
+            e.sheet = ?
+        order by
+            day asc;
+        ''', (sheet,))
+        entries = self.fetchall()
+        for i, (day, start, end, duration, description) in \
+                enumerate(entries):
+            date = displ_date(start)
+            diff = displ_total(duration)
+            if end is None:
+                trange = '%s -' % displ_time(start)
             else:
-                diff = str(timedelta(seconds=e.end - e.start))
-                trange = '%s - %s' % (date(e.start), date(e.end))
+                trange = '%s - %s' % (displ_time(start), displ_time(end))
             if last_day == day:
-                table.append(['', trange, diff, e.desc])
+                # If this row doesn't represent the first entry fo the
+                # day, don't display anything in the day column.
+                table.append(['', trange, diff, description])
             else:
                 if last_day is not None:
-                    day_total = sheet_total(sheet[day_start:i])
-                    table.append(['', '', day_total, ''])
-                table.append([day, trange, diff, e.desc])
+                    # Use day_total set (below) from the previous
+                    # iteration. This is skipped the first iteration,
+                    # since last_day is None.
+                    table.append(['', '', displ_total(day_total), ''])
+                cur_day, day_total = days_iter.next()
+                assert day == cur_day
+                table.append([date, trange, diff, description])
                 last_day = day
-                day_start = i
-        table += [['', '', sheet_total(sheet[day_start:]), ''],
-                  ['Total', '', sheet_total(sheet), '']]
-        pprint_table(table)
+
+        self.execute(u'''
+        select
+            ifnull(sum(ifnull(e.end_time, strftime('%s', 'now')) -
+                       e.start_time), 0) as total
+        from
+            entry e
+        where
+            e.sheet = ?;
+        ''', (sheet,))
+        total = displ_total(self.fetchone()[0])
+        table += [['', '', displ_total(day_total), ''],
+                  ['Total', '', total, '']]
+        pprint_table(table, footer_row=True)
 
     @command('start the timer for the current timesheet')
     def start(self, args, extra=None):
@@ -281,12 +302,19 @@ starting the timer.')
         opts, args = parser.parse_args(args=args)
         now = int(time.time())
         if opts.switch:
-            self.switch([opts.switch])
-        sheet = self[self._current]
-        if sheet.active:
+            sheet = opts.switch
+            self.switch([sheet])
+        else:
+            sheet = self.current_sheet
+        running = self.get_active_info(sheet)
+        if running is not None:
             raise SystemExit, 'error: timesheet already active'
-        sheet.append(Entry((now, None, ' '.join(args), extra)))
-        self.save()
+        description = u' '.join(args) or None
+        self.execute(u'''
+        insert into entry (
+            sheet, start_time, description, extra
+        ) values (?,?,?,?)
+        ''', (sheet, now, description, extra))
 
     @command('delete a timesheet')
     def delete(self, args):
@@ -295,15 +323,26 @@ starting the timer.')
 Delete a timesheet. If no timesheet is specified, delete the current \
 timesheet and switch to the default timesheet.''')
         opts, args = parser.parse_args(args=args)
+        current = self.current_sheet
         if args:
             to_delete = args[0]
+            switch_to_default = False
         else:
-            to_delete = self._current
-        del self[to_delete]
-        if self._current == to_delete:
+            to_delete = current
+            switch_to_default = True
+        try:
+            yes_answers = ('y', 'yes')
+            prompt = 'delete timebook %s? ' % to_delete
+            confirm = raw_input(prompt).strip().lower() in yes_answers
+        except (KeyboardInterrupt, EOFError):
+            confirm = False
+            print
+        if not confirm:
+            print 'canceled'
+            return
+        self.execute(u'delete from entry where sheet = ?', (to_delete,))
+        if switch_to_default:
             self.switch(['default'])
-        else:
-            self.save()
 
     @command('show the available timesheets')
     def list(self, args):
@@ -312,13 +351,45 @@ timesheet and switch to the default timesheet.''')
 List the available timesheets.''')
         opts, args = parser.parse_args(args=args)
         table = [[' Timesheet', 'Running', 'Today', 'Total time']]
-        for name in sorted(self):
-            sheet = self[name]
-            cur_name = '%s%s' % ('*' if name == self._current
-                                     else ' ', name)
-            active = '%s' % sheet.running if sheet.active else '--'
-            today = str(timedelta(seconds=sheet.today_total))
-            total_time = str(timedelta(seconds=sheet.total))
+        self.execute(u'''
+        select
+            e1.sheet as name,
+            e1.sheet = meta.value as is_current,
+            ifnull((select
+                strftime('%s', 'now') - e2.start_time
+             from
+                entry e2
+             where
+                e1.sheet = e2.sheet and e2.end_time is null), 0
+            ) as active,
+            (select
+                ifnull(sum(ifnull(e3.end_time, strftime('%s', 'now')) -
+                           e3.start_time), 0)
+                from
+                    entry e3
+                where
+                    e1.sheet = e3.sheet and
+                    e3.start_time > strftime('%s', date('now'))
+            ) as today,
+            ifnull(sum(ifnull(e1.end_time, strftime('%s', 'now')) -
+                       e1.start_time), 0) as total
+        from
+            entry e1, meta
+        where
+            meta.key = 'current_sheet'
+        group by e1.sheet
+        order by e1.sheet asc;
+        ''')
+        sheets = self.fetchall()
+        if len(sheets) == 0:
+            print u'(no sheets)'
+            return
+        for (name, is_current, active, today, total) in sheets:
+            cur_name = '%s%s' % ('*' if is_current else ' ', name)
+            active = str(timedelta(seconds=active)) if active != 0 \
+                                                    else '--'
+            today = str(timedelta(seconds=today))
+            total_time = str(timedelta(seconds=total))
             table.append([cur_name, active, today, total_time])
         pprint_table(table)
 
@@ -332,14 +403,18 @@ to operate on that timesheet. The default timesheet is called
         opts, args = parser.parse_args(args=args)
         if len(args) != 1:
             parser.error('no timesheet given')
-        self._current = args[0]
-        if self.get(self._current) is None:
-            self[self._current] = Timesheet()
-        self.save()
+        self.execute(u'''
+        update
+            meta
+        set
+            value = ?
+        where
+            key = 'current_sheet'
+        ''', (args[0],))
 
     @command('stop the timer for the current timesheet')
     def stop(self, args):
-        parser = OptionParser(usage='''usage: %prog start
+        parser = OptionParser(usage='''usage: %prog stop
 
 Stop the timer for the current timesheet. Must be called after start.''')
         parser.add_option('-v', '--verbose', dest='verbose',
@@ -347,13 +422,20 @@ Stop the timer for the current timesheet. Must be called after start.''')
 the period that the stop command ends.')
         opts, args = parser.parse_args(args=args)
         now = int(time.time())
-        sheet = self[self._current]
-        if not sheet.active:
+        active = self.get_current_active_info()
+        if active is None:
             raise SystemExit, 'error: timesheet not active'
+        active_id, active_time = active
         if opts.verbose:
-            print sheet.running
-        sheet[-1].end = now
-        self.save()
+            print timedelta(seconds=active_time)
+        self.execute(u'''
+        update
+            entry
+        set
+            end_time = ?
+        where
+            entry.id = ?
+        ''', (now, active_id))
 
     @command('insert a note into the timesheet')
     def write(self, args):
@@ -363,49 +445,18 @@ Inserts a note associated with the currently active period in the \
 timesheet.''')
         opts, args = parser.parse_args(args=args)
 
-        sheet = self[self._current]
-        if not self.active:
+        active = self.get_current_active_info()
+        if active is None:
             raise SystemExit, 'error: timesheet not active'
-        self[self._current][-1].desc = ' '.join(args)
-        self.save()
-
-    @command('edit the timesheets data file')
-    def edit(self, args):
-        from subprocess import call
-        from tempfile import mktemp
-
-        parser = OptionParser(usage='''usage: %prog edit
-
-Edit the Python data structures comprising the timesheets data file.
-No locking is done, so saving will overwrite any modifications while
-editing.
-
-You must keep the timesheet sorted so that list and show work
-correctly. This is not done for you.''')
-        opts, args = parser.parse_args(args=args)
-
-        filename = mktemp()
-        f = file(filename, 'w')
-        try:
-            f.write(self.pformat())
-        finally:
-            f.close()
-        statbuf = os.stat(filename)
-
-        editor = os.environ.get('EDITOR', 'vi')
-        call(editor.split() + [filename])
-        if statbuf == os.stat(filename):
-            print 'timesheets not modified.'
-            os.unlink(filename)
-            return
-
-        f = file(filename)
-        try:
-            self._load(eval(f.read()))
-        finally:
-            f.close()
-        os.unlink(filename)
-        self.save()
+        entry_id = active[0]
+        self.execute(u'''
+        update
+            entry
+        set
+            description = ?
+        where
+            entry.id = ?
+        ''', (' '.join(args), entry_id))
 
     @command('display the name of the current timesheet')
     def current(self, args):
@@ -413,21 +464,26 @@ correctly. This is not done for you.''')
 
 Print the name of the current spreadsheet.''')
         opts, args = parser.parse_args(args=args)
-        print self._current
+        print self.current_sheet
 
     @command('show all active timesheets')
     def active(self, args):
         parser = OptionParser(usage='''usage: %prog active
 
-Print all active sheets and any messages associate with them.''')
+Print all active sheets and any messages associated with them.''')
         opts, args = parser.parse_args(args=args)
-        table = []
-        for name, sheet in self.iteritems():
-            if sheet.active:
-                table.append([name, sheet[-1].desc])
-        if table:
-            table.sort()
-            pprint_table(table)
+        self.execute(u'''
+        select
+            entry.sheet,
+            ifnull(entry.description, '--')
+        from
+            entry
+        where
+            entry.end_time is null
+        order by
+            entry.sheet asc;
+        ''')
+        pprint_table([(u'Timesheet', u'Description')] + self.fetchall())
 
     @command('briefly describe the status of the timesheet')
     def info(self, args):
@@ -441,27 +497,29 @@ If a specific timesheet is given, display the same information for that
 timesheet instead.''')
         opts, args = parser.parse_args(args=args)
         if args:
-            sheet_name = complete(self, args[0], 'timesheet')
+            sheet = complete(self.get_sheet_names(), args[0], 'timesheet')
         else:
-            sheet_name = self._current
-        sheet = self[sheet_name]
-        if sheet.active:
-            active = sheet.running + \
-                     ' (%s)' % sheet[-1].desc.rstrip('.') \
-                     if sheet[-1].desc else ''
-        else:
+            sheet = self.current_sheet
+        running = self.get_active_info(sheet)
+        if running is None:
             active = 'not active'
-        print '%s: %s' % (sheet_name, active)
+        else:
+            duration = str(timedelta(seconds=running[0]))
+            if running[1]:
+                active = '%s (%s)' % (duration, running[1].rstrip('.'))
+            else:
+                active = duration
+        print '%s: %s' % (sheet, active)
 
     @command('export a sheet to csv format')
     def csv(self, args):
         from bisect import bisect
         import csv
-        import sys
 
         parser = OptionParser(usage='''usage: %prog csv [TIMESHEET]
 
 Export the current sheet as a comma-separated value format spreadsheet.
+If the final entry is active, it is ignored.
 
 If a specific timesheet is given, display the same information for that
 timesheet instead.''')
@@ -475,25 +533,39 @@ ending before 00:00 on this date. The date should be of the format \
 YYYY-MM-DD.')
         opts, args = parser.parse_args(args=args)
         if args:
-            sheet_name = complete(self, args[0], 'timesheet')
+            sheet = complete(self.get_sheet_names(), args[0], 'timesheet')
         else:
-            sheet_name = self._current
-        sheet = self[sheet_name]
-
+            sheet = self.current_sheet
         fmt = '%Y-%m-%d'
+        where = ''
         if opts.start is not None:
             start_date = datetime.strptime(opts.start, fmt)
             start = datetime_to_int(start_date)
-            first_item = bisect([r.start for r in sheet], start)
-            sheet = sheet[first_item:]
+            where += ' and start_time >= %s' % start
         if opts.end is not None:
             end_date = datetime.strptime(opts.end, fmt)
             end = datetime_to_int(end_date)
-            last_item = bisect([r.end for r in sheet], end)
-            sheet = sheet[:last_item]
+            where += ' and end_time <= %s' % end
         writer = csv.writer(sys.stdout)
         writer.writerow(('Start', 'End', 'Length', 'Description'))
-        writer.writerows(e.to_csv() for e in sheet)
+        self.execute(u'''
+        select
+           start_time,
+           end_time,
+           ifnull(end_time, strftime('%%s', 'now')) -
+               start_time,
+           description
+        from
+           entry
+        where
+           sheet = ? and
+           end_time is not null%s
+        ''' % where, (sheet,))
+        format = lambda t: datetime.fromtimestamp(t).strftime(
+            '%m/%d/%Y %H:%M:%S')
+        writer.writerows(map(lambda row: (
+            format(row[0]), format(row[1]), row[2], row[3]),
+            self.fetchall()))
         total_formula = '=SUM(C2:C%d)/3600' % (len(sheet) + 1)
         writer.writerow(('Total', '', total_formula, ''))
 
@@ -522,9 +594,13 @@ def subdirs(path):
         yield path[:last + 1]
         last = path.find(os.path.sep, last + 1)
 
-def pprint_table(table):
-    widths = [3 + max(len(row[col]) for row in table[:-1])
-              for col in xrange(len(table[0]))]
+def pprint_table(table, footer_row=False):
+    if footer_row:
+        check = table[:-1]
+    else:
+        check = table
+    widths = [3 + max(len(row[col]) for row in check) for col
+              in xrange(len(table[0]))]
     for row in table:
         # Don't pad the final column
         first_cols = [cell + ' ' * (spacing - len(cell))
@@ -564,18 +640,18 @@ def parse_config(filename):
         f.close()
     return config
 
-def main():
+def cmdline():
     options, args = parse_options()
     config = parse_config(options.config)
     book = Timebook(options, config)
     cmd, args = args[0], args[1:]
     try:
         book.run_command(cmd, args)
-    except NoMatch:
-        raise SystemExit, 'error: unknown command %r' % cmd
+    except NoMatch, e:
+        raise SystemExit, 'error: %s' % e.args[0]
     except AmbiguousLookup, e:
         raise SystemExit, 'error: %s\n    %s' % (e.args[0],
                                                  ' '.join(e.args[1]))
 
 if __name__ == '__main__':
-    main()
+    cmdline()

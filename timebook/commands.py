@@ -61,10 +61,10 @@ def command(desc, aliases=()):
         for alias in aliases:
             cmd_aliases[alias] = func
         @wraps(func)
-        def decorated(self, args, **kwargs):
-            args, kwargs = pre_hook(func_name)(self, args, kwargs)
-            res = func(self, args, **kwargs)
-            return post_hook(func_name)(self, res)
+        def decorated(db, args, **kwargs):
+            args, kwargs = pre_hook(db, func_name)(db, args, kwargs)
+            res = func(db, args, **kwargs)
+            return post_hook(db, func_name)(db, res)
         return decorated
     return decorator
 

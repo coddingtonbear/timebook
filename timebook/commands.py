@@ -99,8 +99,8 @@ Display a given timesheet. If no timesheet is specified, show the
 current timesheet.''')
     opts, args = parser.parse_args(args=args)
     if args:
-        sheet = complete(dbutil.get_sheet_names(db), args[0],
-                         'timesheet')
+        sheet = cmdutil.complete(dbutil.get_sheet_names(db), args[0],
+                                 'timesheet')
     else:
         sheet = dbutil.get_current_sheet(db)
     print 'Timesheet %s:' % sheet
@@ -203,7 +203,7 @@ starting the timer.')
         switch(db, [sheet])
     else:
         sheet = dbutil.get_current_sheet(db)
-    running = db.get_active_info(db, sheet)
+    running = dbutil.get_active_info(db, sheet)
     if running is not None:
         raise SystemExit, 'error: timesheet already active'
     description = u' '.join(args) or None
@@ -394,7 +394,8 @@ If a specific timesheet is given, display the same information for that
 timesheet instead.''')
     opts, args = parser.parse_args(args=args)
     if args:
-        sheet = complete(dbutil.get_sheet_names(db), args[0], 'timesheet')
+        sheet = cmdutil.complete(dbutil.get_sheet_names(db), args[0],
+                                 'timesheet')
     else:
         sheet = dbutil.get_current_sheet(db)
     running = dbutil.get_active_info(db, sheet)
@@ -430,7 +431,8 @@ ending before 00:00 on this date. The date should be of the format \
 YYYY-MM-DD.')
     opts, args = parser.parse_args(args=args)
     if args:
-        sheet = complete(dbutil.get_sheet_names(db), args[0], 'timesheet')
+        sheet = cmdutil.complete(dbutil.get_sheet_names(db), args[0],
+                                 'timesheet')
     else:
         sheet = dbutil.get_current_sheet(db)
     fmt = '%Y-%m-%d'

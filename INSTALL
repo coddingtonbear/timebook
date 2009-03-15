@@ -1,0 +1,17 @@
+Installation
+============
+
+To install timebook, run the following command from the mercurial
+repository::
+
+    python setup.py install
+
+This will install timebook to the default location on your system. To
+install to a different directory, supply setup.py with the ``--prefix``
+option. For details, refer to ``python setup.py install --help`` and the
+python setuptools documentation.
+
+Alternatively, you can copy or symlink the ``timebook`` subdirectory to
+a directory on your python path, and copy or symlink the ``t``
+executable to a directory on your ``PATH``. This facilitates updating
+through mercurial.

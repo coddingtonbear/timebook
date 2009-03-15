@@ -6,7 +6,7 @@ setup(
     name='timebook',
     version='.'.join(str(bit) for bit in __version__),
     url='http://bitbucket.org/trevor/timebook/',
-    description='Simple time tracking utility',
+    description='track what you spend time on',
     author='Trevor Caira',
     author_email='trevor@caira.com',
     classifiers=[

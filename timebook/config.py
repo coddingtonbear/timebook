@@ -22,13 +22,36 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from ConfigParser import SafeConfigParser
+import os
 
 class ConfigParser(SafeConfigParser):
     def __getitem__(self, name):
         return dict(self.items(name))
 
+def subdirs(path):
+    path = os.path.abspath(path)
+    last = path.find(os.path.sep)
+    while True:
+        if last == -1:
+            break
+        yield path[:last + 1]
+        last = path.find(os.path.sep, last + 1)
+
 def parse_config(filename):
     config = ConfigParser()
+    if not os.path.exists(os.path.dirname(filename)):
+        for d in subdirs(filename):
+            print d
+            if os.path.exists(d):
+                continue
+            else:
+                os.mkdir(d)
+    if not os.path.exists(filename):
+        f = open(filename, 'w')
+        try:
+            f.write('# timebook configuration file')
+        finally:
+            f.close()
     f = open(filename)
     try:
         config.readfp(f)

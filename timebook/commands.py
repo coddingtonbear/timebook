@@ -462,8 +462,8 @@ YYYY-MM-DD.')
     ''' % where, (sheet,))
     format = lambda t: datetime.fromtimestamp(t).strftime(
         '%m/%d/%Y %H:%M:%S')
+    rows = db.fetchall()
     writer.writerows(map(lambda row: (
-        format(row[0]), format(row[1]), row[2], row[3]),
-        db.fetchall()))
-    total_formula = '=SUM(C2:C%d)/3600' % (len(sheet) + 1)
+        format(row[0]), format(row[1]), row[2], row[3]), rows))
+    total_formula = '=SUM(C2:C%d)/3600' % (len(rows) + 1)
     writer.writerow(('Total', '', total_formula, ''))

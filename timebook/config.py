@@ -41,7 +41,6 @@ def parse_config(filename):
     config = ConfigParser()
     if not os.path.exists(os.path.dirname(filename)):
         for d in subdirs(filename):
-            print d
             if os.path.exists(d):
                 continue
             else:

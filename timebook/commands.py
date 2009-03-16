@@ -300,6 +300,12 @@ to operate on that timesheet. The default timesheet is called
     opts, args = parser.parse_args(args=args)
     if len(args) != 1:
         parser.error('no timesheet given')
+
+    # optimization: check that the given timesheet is not already
+    # current. updates are far slower than selects.
+    if dbutil.get_current_sheet(db) == args[0]:
+        return
+
     db.execute(u'''
     update
         meta

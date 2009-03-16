@@ -22,4 +22,4 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 __author__ = 'Trevor Caira <trevor@caira.com>'
-__version__ = (1, 0, 1)
+__version__ = (1, 0, 2)

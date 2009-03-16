@@ -19,5 +19,6 @@ setup(
         'Topic :: Utilities',
     ],
     packages=['timebook'],
-    scripts=['t'],
+    entry_points={'console_scripts': [
+        't = timebook.cmdline:run_from_cmdline']},
 )

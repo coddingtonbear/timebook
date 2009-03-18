@@ -53,13 +53,13 @@ def post_hook(db, func_name):
                 return mod.post
     return lambda db, res: res
 
-def command(desc, aliases=()):
+def command(desc, name=None, aliases=()):
     def decorator(func):
-        func_name = func.func_code.co_name
+        func_name = name or func.func_code.co_name
         commands[func_name] = func
         func.description = desc
         for alias in aliases:
-            cmd_aliases[alias] = func
+            cmd_aliases[alias] = func_name
         @wraps(func)
         def decorated(db, args, **kwargs):
             args, kwargs = pre_hook(db, func_name)(db, args, kwargs)
@@ -83,17 +83,17 @@ def run_command(db, cmd, args):
 
 # Commands
 
-@command('open an interactive database shell')
-def shell(db, args):
-    parser = OptionParser(usage='''usage: %prog dump
+@command("open an the backend's interactive shell", aliases=('shell',))
+def backend(db, args):
+    parser = OptionParser(usage='''usage: %prog backend
 
 Run an interactive database session on the timebook database. Requires
 the sqlite3 command.''')
     os.execvp('sqlite3', ('sqlite3', db.path))
 
-@command('show the current timesheet')
-def show(db, args):
-    parser = OptionParser(usage='''usage: %prog show [TIMESHEET]
+@command('display the current timesheet', aliases=('show',))
+def display(db, args):
+    parser = OptionParser(usage='''usage: %prog display [TIMESHEET]
 
 Display a given timesheet. If no timesheet is specified, show the
 current timesheet.''')
@@ -186,13 +186,14 @@ current timesheet.''')
               ['Total', '', total, '']]
     cmdutil.pprint_table(table, footer_row=True)
 
-@command('start the timer for the current timesheet')
-def start(db, args, extra=None):
-    parser = OptionParser(usage='''usage: %prog start [NOTES...]
+@command('start the timer for the current timesheet', name='in',
+         aliases=('start',))
+def in_(db, args, extra=None):
+    parser = OptionParser(usage='''usage: %prog in [NOTES...]
 
-Start the timer for the current timesheet. Must be called before stop.
+Start the timer for the current timesheet. Must be called before out.
 Notes may be specified for this period. This is exactly equivalent to
-%prog start; %prog write''')
+%prog in; %prog alter''')
     parser.add_option('-s', '--switch', dest='switch', type='string',
                       help='Switch to another timesheet before \
 starting the timer.')
@@ -214,8 +215,8 @@ starting the timer.')
     ''', (sheet, now, description, extra))
 
 @command('delete a timesheet')
-def delete(db, args):
-    parser = OptionParser(usage='''usage: %prog delete [TIMESHEET]
+def kill(db, args, aliases=('delete',)):
+    parser = OptionParser(usage='''usage: %prog kill [TIMESHEET]
 
 Delete a timesheet. If no timesheet is specified, delete the current \
 timesheet and switch to the default timesheet.''')
@@ -243,7 +244,7 @@ timesheet and switch to the default timesheet.''')
     if switch_to_default:
         switch(db, ['default'])
 
-@command('show the available timesheets')
+@command('show the available timesheets', aliases=('ls',))
 def list(db, args):
     parser = OptionParser(usage='''usage: %prog list
 
@@ -317,14 +318,14 @@ to operate on that timesheet. The default timesheet is called
         key = 'current_sheet'
     ''', (args[0],))
 
-@command('stop the timer for the current timesheet')
-def stop(db, args):
-    parser = OptionParser(usage='''usage: %prog stop
+@command('stop the timer for the current timesheet', aliases=('stop',))
+def out(db, args):
+    parser = OptionParser(usage='''usage: %prog out
 
-Stop the timer for the current timesheet. Must be called after start.''')
+Stop the timer for the current timesheet. Must be called after in.''')
     parser.add_option('-v', '--verbose', dest='verbose',
                       action='store_true', help='Show the duration of \
-the period that the stop command ends.')
+the period that the out command ends.')
     opts, args = parser.parse_args(args=args)
     now = int(time.time())
     active = dbutil.get_current_active_info(db)
@@ -342,12 +343,12 @@ the period that the stop command ends.')
         entry.id = ?
     ''', (now, active_id))
 
-@command('insert a note into the timesheet')
-def write(db, args):
-    parser = OptionParser(usage='''usage: %prog write NOTES...
+@command('alter the description of the active period', aliases=('write',))
+def alter(db, args):
+    parser = OptionParser(usage='''usage: %prog alter NOTES...
 
 Inserts a note associated with the currently active period in the \
-timesheet.''')
+timesheet. For example, ``t alter Documenting timebook.``''')
     opts, args = parser.parse_args(args=args)
 
     active = dbutil.get_current_active_info(db)
@@ -363,17 +364,9 @@ timesheet.''')
         entry.id = ?
     ''', (' '.join(args), entry_id))
 
-@command('display the name of the current timesheet')
-def current(db, args):
-    parser = OptionParser(usage='''usage: %prog current
-
-Print the name of the current spreadsheet.''')
-    opts, args = parser.parse_args(args=args)
-    print dbutil.get_current_sheet(db)
-
-@command('show all active timesheets')
-def active(db, args):
-    parser = OptionParser(usage='''usage: %prog active
+@command('show all running timesheets', aliases=('active',))
+def running(db, args):
+    parser = OptionParser(usage='''usage: %prog running
 
 Print all active sheets and any messages associated with them.''')
     opts, args = parser.parse_args(args=args)
@@ -390,9 +383,10 @@ Print all active sheets and any messages associated with them.''')
     ''')
     cmdutil.pprint_table([(u'Timesheet', u'Description')] + db.fetchall())
 
-@command('briefly describe the status of the timesheet')
-def info(db, args):
-    parser = OptionParser(usage='''usage: %prog info [TIMESHEET]
+@command('show the status of the current timesheet',
+         aliases=('info',))
+def now(db, args):
+    parser = OptionParser(usage='''usage: %prog now [TIMESHEET]
 
 Print the current sheet, whether it's active, and if so, how long it
 has been active and what notes are associated with the current
@@ -400,7 +394,15 @@ period.
 
 If a specific timesheet is given, display the same information for that
 timesheet instead.''')
+    parser.add_option('-s', '--simple', dest='simple',
+                      action='store_true', help='Only display the name \
+of the current timesheet.')
     opts, args = parser.parse_args(args=args)
+
+    if opts.simple:
+        print dbutil.get_current_sheet(db)
+        return
+
     if args:
         sheet = cmdutil.complete(dbutil.get_sheet_names(db), args[0],
                                  'timesheet')
@@ -418,10 +420,10 @@ timesheet instead.''')
     print '%s: %s' % (sheet, active)
 
 @command('export a sheet to csv format')
-def csv(db, args):
+def format(db, args, aliases=('csv', 'export')):
     import csv
 
-    parser = OptionParser(usage='''usage: %prog csv [TIMESHEET]
+    parser = OptionParser(usage='''usage: %prog format [TIMESHEET]
 
 Export the current sheet as a comma-separated value format spreadsheet.
 If the final entry is active, it is ignored.
@@ -474,3 +476,4 @@ YYYY-MM-DD.')
         format(row[0]), format(row[1]), row[2], row[3]), rows))
     total_formula = '=SUM(C2:C%d)/3600' % (len(rows) + 1)
     writer.writerow(('Total', '', total_formula, ''))
+

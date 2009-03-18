@@ -419,7 +419,6 @@ timesheet instead.''')
 
 @command('export a sheet to csv format')
 def csv(db, args):
-    from bisect import bisect
     import csv
 
     parser = OptionParser(usage='''usage: %prog csv [TIMESHEET]

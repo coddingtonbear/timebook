@@ -408,6 +408,24 @@ of the current timesheet.')
                                  'timesheet')
     else:
         sheet = dbutil.get_current_sheet(db)
+
+    db.execute(u'''
+    select
+        count(*)
+    from
+        entry e
+    inner join
+        meta m
+    on
+        key = 'current_sheet'
+    where
+        sheet = m.value;
+    ''')
+    entry_count = db.fetchone()[0]
+    if entry_count == 0:
+        raise SystemExit, '%(prog)s: error: sheet is empty. For program \
+usage, see "%(prog)s --help".' % {'prog': os.path.basename(sys.argv[0])}
+
     running = dbutil.get_active_info(db, sheet)
     if running is None:
         active = 'not active'

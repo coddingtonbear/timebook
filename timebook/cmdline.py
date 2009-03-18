@@ -64,7 +64,8 @@ alternate encoding to decode command line options and arguments (default: \
         parser.error('unknown encoding %s' % encoding)
 
     if len(args) < 1:
-        parser.error('no command specified')
+        # default to ``t now``
+        args = ['now'] + args
     return options, args
 
 def run_from_cmdline():

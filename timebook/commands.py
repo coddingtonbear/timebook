@@ -214,8 +214,8 @@ starting the timer.')
     ) values (?,?,?,?)
     ''', (sheet, now, description, extra))
 
-@command('delete a timesheet')
-def kill(db, args, aliases=('delete',)):
+@command('delete a timesheet', aliases=('delete',))
+def kill(db, args):
     parser = OptionParser(usage='''usage: %prog kill [TIMESHEET]
 
 Delete a timesheet. If no timesheet is specified, delete the current
@@ -437,8 +437,8 @@ usage, see "%(prog)s --help".' % {'prog': os.path.basename(sys.argv[0])}
             active = duration
     print '%s: %s' % (sheet, active)
 
-@command('export a sheet to csv format')
-def format(db, args, aliases=('csv', 'export')):
+@command('export a sheet to csv format', aliases=('csv', 'export'))
+def format(db, args):
     import csv
 
     parser = OptionParser(usage='''usage: %prog format [TIMESHEET]

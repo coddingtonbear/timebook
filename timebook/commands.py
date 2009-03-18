@@ -229,8 +229,10 @@ timesheet and switch to the default timesheet.''')
         switch_to_default = True
     try:
         yes_answers = ('y', 'yes')
-        prompt = 'delete timesheet %s? ' % to_delete
-        confirm = raw_input(prompt).strip().lower() in yes_answers
+        # Use print to display the prompt since it intelligently decodes
+        # unicode strings.
+        print (u'delete timesheet %s?' % to_delete),
+        confirm = raw_input('').strip().lower() in yes_answers
     except (KeyboardInterrupt, EOFError):
         confirm = False
         print

@@ -218,7 +218,7 @@ starting the timer.')
 def kill(db, args, aliases=('delete',)):
     parser = OptionParser(usage='''usage: %prog kill [TIMESHEET]
 
-Delete a timesheet. If no timesheet is specified, delete the current \
+Delete a timesheet. If no timesheet is specified, delete the current
 timesheet and switch to the default timesheet.''')
     opts, args = parser.parse_args(args=args)
     current = dbutil.get_current_sheet(db)

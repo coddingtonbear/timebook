@@ -21,9 +21,9 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+import locale
 from optparse import OptionParser
 import os
-import sys
 
 from timebook.db import Database
 from timebook.commands import commands, run_command
@@ -33,7 +33,7 @@ from timebook.cmdutil import AmbiguousLookup, NoMatch
 confdir = os.path.expanduser(os.path.join('~', '.config', 'timebook'))
 DEFAULTS = {'config': os.path.join(confdir, 'timebook.ini'),
             'timebook': os.path.join(confdir, 'sheets.db'),
-            'encoding': sys.stdin.encoding}
+            'encoding': locale.getpreferredencoding()}
 
 def parse_options():
     cmd_descs = ['%s - %s' % (k, commands[k].description) for k
@@ -56,9 +56,12 @@ alternate encoding to decode command line options and arguments (default: \
 %r)' % DEFAULTS['encoding'])
     options, args = parser.parse_args()
     encoding = options.__dict__.pop('encoding')
-    options.__dict__ = dict((k, v.decode(encoding)) for (k, v) in
-                            options.__dict__.iteritems())
-    args = [a.decode(encoding) for a in args]
+    try:
+        options.__dict__ = dict((k, v.decode(encoding)) for (k, v) in
+                                options.__dict__.iteritems())
+        args = [a.decode(encoding) for a in args]
+    except LookupError:
+        parser.error('unknown encoding %s' % encoding)
 
     if len(args) < 1:
         parser.error('no command specified')

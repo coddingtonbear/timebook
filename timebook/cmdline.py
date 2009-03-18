@@ -46,14 +46,14 @@ where COMMAND is one of:
     parser.disable_interspersed_args()
     parser.add_option('-C', '--config', dest='config',
                       default=DEFAULTS['config'], help='Specify an \
-alternate configuration file (default: %r).' % DEFAULTS['config'])
+alternate configuration file (default: "%s").' % DEFAULTS['config'])
     parser.add_option('-b', '--timebook', dest='timebook',
                       default=DEFAULTS['timebook'], help='Specify an \
-alternate timebook file (default: %r).' % DEFAULTS['timebook'])
+alternate timebook file (default: "%s").' % DEFAULTS['timebook'])
     parser.add_option('-e', '--encoding', dest='encoding',
                       default=DEFAULTS['encoding'], help='Specify an \
 alternate encoding to decode command line options and arguments (default: \
-%r)' % DEFAULTS['encoding'])
+"%s")' % DEFAULTS['encoding'])
     options, args = parser.parse_args()
     encoding = options.__dict__.pop('encoding')
     try:

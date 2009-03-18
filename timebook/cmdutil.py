@@ -37,11 +37,11 @@ def complete(it, lookup, key_desc):
         if i.startswith(lookup):
             if partial_match is not None:
                 matches = sorted(i for i in it if i.startswith(lookup))
-                raise AmbiguousLookup('ambiguous %s %r:' %
+                raise AmbiguousLookup('ambiguous %s "%s":' %
                                       (key_desc, lookup), matches)
             partial_match = i
     if partial_match is None:
-        raise NoMatch('no such %s %r.' % (key_desc, lookup))
+        raise NoMatch('no such %s "%s".' % (key_desc, lookup))
     else:
         return partial_match
 

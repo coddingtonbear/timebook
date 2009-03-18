@@ -494,4 +494,3 @@ YYYY-MM-DD.')
         format(row[0]), format(row[1]), row[2], row[3]), rows))
     total_formula = '=SUM(C2:C%d)/3600' % (len(rows) + 1)
     writer.writerow(('Total', '', total_formula, ''))
-

@@ -23,6 +23,7 @@
 
 from datetime import datetime, timedelta
 from functools import wraps
+from gettext import ngettext
 from optparse import OptionParser
 import os
 import sys
@@ -300,23 +301,36 @@ def switch(db, args):
 Switch to a new timesheet. This causes all future operation (except switch)
 to operate on that timesheet. The default timesheet is called
 "default".''')
+    parser.add_option('-v', '--verbose', dest='verbose',
+                      action='store_true', help='Print the name and \
+number of entries of the timesheet.')
     opts, args = parser.parse_args(args=args)
     if len(args) != 1:
         parser.error('no timesheet given')
 
+    sheet = args[0]
+
     # optimization: check that the given timesheet is not already
     # current. updates are far slower than selects.
-    if dbutil.get_current_sheet(db) == args[0]:
-        return
+    if dbutil.get_current_sheet(db) != sheet:
+            db.execute(u'''
+        update
+            meta
+        set
+            value = ?
+        where
+            key = 'current_sheet'
+        ''', (args[0],))
 
-    db.execute(u'''
-    update
-        meta
-    set
-        value = ?
-    where
-        key = 'current_sheet'
-    ''', (args[0],))
+    if opts.verbose:
+        entry_count = dbutil.get_entry_count(db)
+        if entry_count == 0:
+            print u'switched to empty timesheet "%s"' % sheet
+        else:
+            print ngettext(
+                u'switched to timesheet "%s" (1 entry)' % sheet,
+                u'switched to timesheet "%s" (%s entries)' % (
+                    sheet, entry_count), entry_count)
 
 @command('stop the timer for the current timesheet', aliases=('stop',))
 def out(db, args):
@@ -409,19 +423,7 @@ of the current timesheet.')
     else:
         sheet = dbutil.get_current_sheet(db)
 
-    db.execute(u'''
-    select
-        count(*)
-    from
-        entry e
-    inner join
-        meta m
-    on
-        key = 'current_sheet'
-    where
-        sheet = m.value;
-    ''')
-    entry_count = db.fetchone()[0]
+    entry_count = dbutil.get_entry_count(db)
     if entry_count == 0:
         raise SystemExit, '%(prog)s: error: sheet is empty. For program \
 usage, see "%(prog)s --help".' % {'prog': os.path.basename(sys.argv[0])}

@@ -70,3 +70,18 @@ def get_current_active_info(db):
         entry.end_time is null
     ''')
     return db.fetchone()
+
+def get_entry_count(db):
+    db.execute(u'''
+    select
+        count(*)
+    from
+        entry e
+    inner join
+        meta m
+    on
+        key = 'current_sheet'
+    where
+        sheet = m.value;
+    ''')
+    return db.fetchone()[0]

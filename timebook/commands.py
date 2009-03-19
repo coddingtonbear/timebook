@@ -250,7 +250,24 @@ def list(db, args):
     parser = OptionParser(usage='''usage: %prog list
 
 List the available timesheets.''')
+    parser.add_option('-s', '--simple', dest='simple',
+                      action='store_true', help='Only display the names \
+of the available timesheets.')
     opts, args = parser.parse_args(args=args)
+
+    if opts.simple:
+        db.execute(
+        u'''
+        select
+            distinct sheet
+        from
+            entry
+        order by
+            sheet asc;
+        ''')
+        print u'\n'.join(r[0] for r in db.fetchall())
+        return
+
     table = [[' Timesheet', 'Running', 'Today', 'Total time']]
     db.execute(u'''
     select

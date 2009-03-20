@@ -23,3 +23,6 @@
 
 __author__ = 'Trevor Caira <trevor@caira.com>'
 __version__ = (1, 0, 2)
+
+def get_version():
+    return '.'.join(str(bit) for bit in __version__)

@@ -1,10 +1,10 @@
 from setuptools import setup
 
-from timebook import __version__
+from timebook import get_version
 
 setup(
     name='timebook',
-    version='.'.join(str(bit) for bit in __version__),
+    version=get_version(),
     url='http://bitbucket.org/trevor/timebook/',
     description='track what you spend time on',
     author='Trevor Caira',

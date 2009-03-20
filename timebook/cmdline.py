@@ -25,6 +25,7 @@ import locale
 from optparse import OptionParser
 import os
 
+from timebook import get_version
 from timebook.db import Database
 from timebook.commands import commands, run_command
 from timebook.config import parse_config
@@ -42,7 +43,7 @@ def parse_options():
 [ARGS...]
 
 where COMMAND is one of:
-    %s''' % '\n    '.join(cmd_descs))
+    %s''' % '\n    '.join(cmd_descs), version=get_version())
     parser.disable_interspersed_args()
     parser.add_option('-C', '--config', dest='config',
                       default=DEFAULTS['config'], help='Specify an \

@@ -26,6 +26,7 @@ from functools import wraps
 from gettext import ngettext
 from optparse import OptionParser
 import os
+import subprocess
 import sys
 import time
 
@@ -90,7 +91,7 @@ def backend(db, args):
 
 Run an interactive database session on the timebook database. Requires
 the sqlite3 command.''')
-    os.execvp('sqlite3', ('sqlite3', db.path))
+    subprocess.call(('sqlite3', db.path))
 
 @command('display the current timesheet', aliases=('show',))
 def display(db, args):

@@ -85,7 +85,7 @@ def run_command(db, cmd, args):
 
 # Commands
 
-@command("open an the backend's interactive shell", aliases=('shell',))
+@command("open the backend's interactive shell", aliases=('shell',))
 def backend(db, args):
     parser = OptionParser(usage='''usage: %prog backend
 

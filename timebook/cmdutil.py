@@ -60,3 +60,9 @@ def pprint_table(table, footer_row=False):
 
 def datetime_to_int(dt):
     return int(time.mktime(dt.timetuple()))
+
+def timedelta_hms_display(timedelta):
+    hours = timedelta.days * 24 + timedelta.seconds / 3600
+    minutes = timedelta.seconds / 60 % 60
+    seconds = timedelta.seconds % 60
+    return '%02d:%02d:%02d' % (hours, minutes, seconds)

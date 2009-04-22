@@ -99,6 +99,9 @@ def display(db, args):
 
 Display a given timesheet. If no timesheet is specified, show the
 current timesheet.''')
+    parser.add_option('-H', '--hours', dest='hours',
+                      action='store_true',
+                      help='Display time sums in hours')
     opts, args = parser.parse_args(args=args)
     if args:
         sheet = cmdutil.complete(dbutil.get_sheet_names(db), args[0],
@@ -116,7 +119,11 @@ current timesheet.''')
     displ_time = lambda t: time.strftime('%H:%M:%S', time.localtime(t))
     displ_date = lambda t: time.strftime('%b %d, %Y',
                                          time.localtime(t))
-    displ_total = lambda t: str(timedelta(seconds=t))
+    if opts.hours:
+        displ_total = lambda t: \
+            cmdutil.timedelta_hms_display(timedelta(seconds=t))
+    else:
+        displ_total = lambda t: str(timedelta(seconds=t))
     last_day = None
     table = [['Day', 'Start      End', 'Duration', 'Notes']]
     db.execute(u'''

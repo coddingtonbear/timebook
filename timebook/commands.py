@@ -160,7 +160,7 @@ current timesheet.''')
         else:
             trange = '%s - %s' % (displ_time(start), displ_time(end))
         if last_day == day:
-            # If this row doesn't represent the first entry fo the
+            # If this row doesn't represent the first entry of the
             # day, don't display anything in the day column.
             table.append(['', trange, diff, description])
         else:

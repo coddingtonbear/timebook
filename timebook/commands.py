@@ -412,8 +412,7 @@ style (--format=plain) or csv --format=csv")
     elif opts.format == 'csv':
         format_csv(db, sheet, where)
     else:
-        print >>sys.stderr, 'Invalid format: %s' % opts.format
-        raise SystemExit()
+        raise SystemExit, 'Invalid format: %s' % opts.format
 
 def format_csv(db, sheet, where):
     import csv

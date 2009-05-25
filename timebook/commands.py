@@ -93,10 +93,6 @@ Run an interactive database session on the timebook database. Requires
 the sqlite3 command.''')
     subprocess.call(('sqlite3', db.path))
 
-@command('display the current timesheet', aliases=('show',))
-def display(db, args):
-    format(db, ["--format=timebook"] + args)
-
 @command('start the timer for the current timesheet', name='in',
          aliases=('start',))
 def in_(db, args, extra=None):
@@ -366,17 +362,15 @@ usage, see "%(prog)s --help".' % {'prog': os.path.basename(sys.argv[0])}
             active = duration
     print '%s: %s' % (sheet, active)
 
-class NoSuchFormat(ValueError):
-    pass
-
-@command('export a sheet to csv format', aliases=('csv', 'export'))
-def format(db, args):
+@command('display timesheet, by default the current one',
+         aliases=('export', 'format', 'show'))
+def display(db, args):
     # arguments
-    parser = OptionParser(usage='''usage: %prog [format|display] [TIMESHEET]
+    parser = OptionParser(usage='''usage: %prog display [TIMESHEET]
 
 Display the data from a timesheet in the range of dates specified, either
-in the normal timebook fashion (using the display command or
---format=timebook) or as comma-separated value format spreadsheet, which
+in the normal timebook fashion (using --format=plain) or as
+comma-separated value format spreadsheet (using --format=csv), which
 ignores the final entry if active.
 
 If a specific timesheet is given, display the same information for that
@@ -390,7 +384,9 @@ YYYY-MM-DD.')
 ending before 00:00 on this date. The date should be of the format \
 YYYY-MM-DD.')
     parser.add_option('-f', '--format', dest='format', type='string',
-                  help="Select whether to output timebook-style or csv")
+                  default='plain',
+                  help="Select whether to output in the normal timebook \
+style (--format=plain) or csv --format=csv")
     opts, args = parser.parse_args(args=args)
 
     # grab correct sheet
@@ -411,12 +407,13 @@ YYYY-MM-DD.')
         end_date = datetime.strptime(opts.end, fmt)
         end = cmdutil.datetime_to_int(end_date)
         where += ' and end_time <= %s' % end
-    if opts.format == 'timebook':
+    if opts.format == 'plain':
         format_timebook(db, sheet, where)
     elif opts.format == 'csv':
         format_csv(db, sheet, where)
     else:
-        raise NoSuchFormat(opts.format)
+        print >>sys.stderr, 'Invalid format: %s' % opts.format
+        raise SystemExit()
 
 def format_csv(db, sheet, where):
     import csv

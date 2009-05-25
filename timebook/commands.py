@@ -95,99 +95,7 @@ the sqlite3 command.''')
 
 @command('display the current timesheet', aliases=('show',))
 def display(db, args):
-    parser = OptionParser(usage='''usage: %prog display [TIMESHEET]
-
-Display a given timesheet. If no timesheet is specified, show the
-current timesheet.''')
-    opts, args = parser.parse_args(args=args)
-    if args:
-        sheet = cmdutil.complete(dbutil.get_sheet_names(db), args[0],
-                                 'timesheet')
-    else:
-        sheet = dbutil.get_current_sheet(db)
-    print 'Timesheet %s:' % sheet
-    db.execute(u'''
-    select count(*) > 0 from entry where sheet = ?
-    ''', (sheet,))
-    if not db.fetchone()[0]:
-        print '(empty)'
-        return
-
-    displ_time = lambda t: time.strftime('%H:%M:%S', time.localtime(t))
-    displ_date = lambda t: time.strftime('%b %d, %Y',
-                                         time.localtime(t))
-    displ_total = lambda t: \
-            cmdutil.timedelta_hms_display(timedelta(seconds=t))
-    last_day = None
-    table = [['Day', 'Start      End', 'Duration', 'Notes']]
-    db.execute(u'''
-    select
-        date(e.start_time, 'unixepoch', 'localtime') as day,
-        ifnull(sum(ifnull(e.end_time, strftime('%s', 'now')) -
-                   e.start_time), 0) as day_total
-    from
-        entry e
-    where
-        e.sheet = ?
-    group by
-        day
-    order by
-        day asc;
-    ''', (sheet,))
-    days = db.fetchall()
-    days_iter = iter(days)
-    db.execute(u'''
-    select
-        date(e.start_time, 'unixepoch', 'localtime') as day,
-        e.start_time as start,
-        e.end_time as end,
-        ifnull(e.end_time, strftime('%s', 'now')) - e.start_time as
-            duration,
-        ifnull(e.description, '') as description
-    from
-        entry e
-    where
-        e.sheet = ?
-    order by
-        day asc;
-    ''', (sheet,))
-    entries = db.fetchall()
-    for i, (day, start, end, duration, description) in \
-            enumerate(entries):
-        date = displ_date(start)
-        diff = displ_total(duration)
-        if end is None:
-            trange = '%s -' % displ_time(start)
-        else:
-            trange = '%s - %s' % (displ_time(start), displ_time(end))
-        if last_day == day:
-            # If this row doesn't represent the first entry of the
-            # day, don't display anything in the day column.
-            table.append(['', trange, diff, description])
-        else:
-            if last_day is not None:
-                # Use day_total set (below) from the previous
-                # iteration. This is skipped the first iteration,
-                # since last_day is None.
-                table.append(['', '', displ_total(day_total), ''])
-            cur_day, day_total = days_iter.next()
-            assert day == cur_day
-            table.append([date, trange, diff, description])
-            last_day = day
-
-    db.execute(u'''
-    select
-        ifnull(sum(ifnull(e.end_time, strftime('%s', 'now')) -
-                   e.start_time), 0) as total
-    from
-        entry e
-    where
-        e.sheet = ?;
-    ''', (sheet,))
-    total = displ_total(db.fetchone()[0])
-    table += [['', '', displ_total(day_total), ''],
-              ['Total', '', total, '']]
-    cmdutil.pprint_table(table, footer_row=True)
+    format(db, ["--format=timebook"] + args)
 
 @command('start the timer for the current timesheet', name='in',
          aliases=('start',))
@@ -458,14 +366,18 @@ usage, see "%(prog)s --help".' % {'prog': os.path.basename(sys.argv[0])}
             active = duration
     print '%s: %s' % (sheet, active)
 
+class NoSuchFormat(ValueError):
+    pass
+
 @command('export a sheet to csv format', aliases=('csv', 'export'))
 def format(db, args):
-    import csv
+    # arguments
+    parser = OptionParser(usage='''usage: %prog [format|display] [TIMESHEET]
 
-    parser = OptionParser(usage='''usage: %prog format [TIMESHEET]
-
-Export the current sheet as a comma-separated value format spreadsheet.
-If the final entry is active, it is ignored.
+Display the data from a timesheet in the range of dates specified, either
+in the normal timebook fashion (using the display command or
+--format=timebook) or as comma-separated value format spreadsheet, which
+ignores the final entry if active.
 
 If a specific timesheet is given, display the same information for that
 timesheet instead.''')
@@ -477,14 +389,20 @@ YYYY-MM-DD.')
                       metavar='DATE', help='Show only entries \
 ending before 00:00 on this date. The date should be of the format \
 YYYY-MM-DD.')
+    parser.add_option('-f', '--format', dest='format', type='string',
+                  help="Select whether to output timebook-style or csv")
     opts, args = parser.parse_args(args=args)
+
+    # grab correct sheet
     if args:
         sheet = cmdutil.complete(dbutil.get_sheet_names(db), args[0],
                                  'timesheet')
     else:
         sheet = dbutil.get_current_sheet(db)
-    fmt = '%Y-%m-%d'
+
+    #calculate "where"
     where = ''
+    fmt = '%Y-%m-%d'
     if opts.start is not None:
         start_date = datetime.strptime(opts.start, fmt)
         start = cmdutil.datetime_to_int(start_date)
@@ -493,6 +411,16 @@ YYYY-MM-DD.')
         end_date = datetime.strptime(opts.end, fmt)
         end = cmdutil.datetime_to_int(end_date)
         where += ' and end_time <= %s' % end
+    if opts.format == 'timebook':
+        format_timebook(db, sheet, where)
+    elif opts.format == 'csv':
+        format_csv(db, sheet, where)
+    else:
+        raise NoSuchFormat(opts.format)
+
+def format_csv(db, sheet, where):
+    import csv
+
     writer = csv.writer(sys.stdout)
     writer.writerow(('Start', 'End', 'Length', 'Description'))
     db.execute(u'''
@@ -515,3 +443,88 @@ YYYY-MM-DD.')
         format(row[0]), format(row[1]), row[2], row[3]), rows))
     total_formula = '=SUM(C2:C%d)/3600' % (len(rows) + 1)
     writer.writerow(('Total', '', total_formula, ''))
+
+def format_timebook(db, sheet, where):
+    db.execute(u'''
+    select count(*) > 0 from entry where sheet = ?%s
+    ''' % where, (sheet,))
+    if not db.fetchone()[0]:
+        print '(empty)'
+        return
+
+    displ_time = lambda t: time.strftime('%H:%M:%S', time.localtime(t))
+    displ_date = lambda t: time.strftime('%b %d, %Y',
+                                         time.localtime(t))
+    displ_total = lambda t: \
+            cmdutil.timedelta_hms_display(timedelta(seconds=t))
+
+    last_day = None
+    table = [['Day', 'Start      End', 'Duration', 'Notes']]
+    db.execute(u'''
+    select
+        date(e.start_time, 'unixepoch', 'localtime') as day,
+        ifnull(sum(ifnull(e.end_time, strftime('%%s', 'now')) -
+                   e.start_time), 0) as day_total
+    from
+        entry e
+    where
+        e.sheet = ?%s
+    group by
+        day
+    order by
+        day asc;
+    ''' % where, (sheet,))
+    days = db.fetchall()
+    days_iter = iter(days)
+    db.execute(u'''
+    select
+        date(e.start_time, 'unixepoch', 'localtime') as day,
+        e.start_time as start,
+        e.end_time as end,
+        ifnull(e.end_time, strftime('%%s', 'now')) - e.start_time as
+            duration,
+        ifnull(e.description, '') as description
+    from
+        entry e
+    where
+        e.sheet = ?%s
+    order by
+        day asc;
+    ''' % where, (sheet,))
+    entries = db.fetchall()
+    for i, (day, start, end, duration, description) in \
+            enumerate(entries):
+        date = displ_date(start)
+        diff = displ_total(duration)
+        if end is None:
+            trange = '%s -' % displ_time(start)
+        else:
+            trange = '%s - %s' % (displ_time(start), displ_time(end))
+        if last_day == day:
+            # If this row doesn't represent the first entry of the
+            # day, don't display anything in the day column.
+            table.append(['', trange, diff, description])
+        else:
+            if last_day is not None:
+                # Use day_total set (below) from the previous
+                # iteration. This is skipped the first iteration,
+                # since last_day is None.
+                table.append(['', '', displ_total(day_total), ''])
+            cur_day, day_total = days_iter.next()
+            assert day == cur_day
+            table.append([date, trange, diff, description])
+            last_day = day
+
+    db.execute(u'''
+    select
+        ifnull(sum(ifnull(e.end_time, strftime('%%s', 'now')) -
+                   e.start_time), 0) as total
+    from
+        entry e
+    where
+        e.sheet = ?%s;
+    ''' % where, (sheet,))
+    total = displ_total(db.fetchone()[0])
+    table += [['', '', displ_total(day_total), ''],
+              ['Total', '', total, '']]
+    cmdutil.pprint_table(table, footer_row=True)

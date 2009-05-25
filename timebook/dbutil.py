@@ -71,6 +71,23 @@ def get_current_active_info(db):
     ''')
     return db.fetchone()
 
+def get_current_start_time(db):
+    db.execute(u'''
+    select
+        entry.id,
+        entry.start_time
+    from
+        entry
+    inner join
+        meta
+    on
+        meta.key = 'current_sheet' and
+        meta.value = entry.sheet
+    where
+        entry.end_time is null
+    ''')
+    return db.fetchone()
+
 def get_entry_count(db):
     db.execute(u'''
     select

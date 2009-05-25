@@ -263,14 +263,22 @@ Stop the timer for the current timesheet. Must be called after in.''')
     parser.add_option('-v', '--verbose', dest='verbose',
                       action='store_true', help='Show the duration of \
 the period that the out command ends.')
+    parser.add_option('-a', '--at', dest='at',
+                      help='Set time of clock-out')
     opts, args = parser.parse_args(args=args)
-    now = int(time.time())
-    active = dbutil.get_current_active_info(db)
+    if not opts.at:
+        timestamp = int(time.time())
+    else:
+        timestamp = cmdutil.parse_date_time(opts.at)
+    active = dbutil.get_current_start_time(db)
     if active is None:
         raise SystemExit, 'error: timesheet not active'
-    active_id, active_time = active
+    active_id, start_time = active
+    active_time = timestamp - start_time
     if opts.verbose:
         print timedelta(seconds=active_time)
+    if active_time < 0:
+        raise SystemExit, "Error: Negative active time"
     db.execute(u'''
     update
         entry
@@ -278,7 +286,7 @@ the period that the out command ends.')
         end_time = ?
     where
         entry.id = ?
-    ''', (now, active_id))
+    ''', (timestamp, active_id))
 
 @command('alter the description of the active period', aliases=('write',))
 def alter(db, args):
@@ -400,12 +408,10 @@ style (--format=plain) or csv --format=csv")
     where = ''
     fmt = '%Y-%m-%d'
     if opts.start is not None:
-        start_date = datetime.strptime(opts.start, fmt)
-        start = cmdutil.datetime_to_int(start_date)
+        start = cmdutil.parse_date_time(opts.start)
         where += ' and start_time >= %s' % start
     if opts.end is not None:
-        end_date = datetime.strptime(opts.end, fmt)
-        end = cmdutil.datetime_to_int(end_date)
+        end = cmdutil.parse_date_time(opts.end)
         where += ' and end_time <= %s' % end
     if opts.format == 'plain':
         format_timebook(db, sheet, where)

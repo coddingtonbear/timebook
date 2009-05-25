@@ -21,7 +21,9 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+import datetime
 import time
+import re
 
 class AmbiguousLookup(ValueError):
     pass
@@ -58,8 +60,19 @@ def pprint_table(table, footer_row=False):
                       for (cell, spacing) in zip(row[:-1], widths[:-1])]
         print ''.join(first_cols + [row[-1]])
 
-def datetime_to_int(dt):
-    return int(time.mktime(dt.timetuple()))
+today_str = time.strftime("%Y-%m-%d", datetime.datetime.now().timetuple())
+matches = [(re.compile(r'^\d+:\d+$'), today_str + " ", ":00"),
+           (re.compile(r'^\d+:\d+:\d+$'), today_str + " ", ""),
+           (re.compile(r'^\d+-\d+-\d+$'), "", " 00:00:00"),
+           (re.compile(r'^\d+-\d+-\d+\s+\d+:\d+$'), "", ":00"),
+           (re.compile(r'^\d+-\d+-\d+\s+\d+:\d+:\d+$'), "", ""),
+          ]
+fmt = "%Y-%m-%d %H:%M:%S"
+def parse_date_time(dt_str):
+    for (patt, prepend, postpend) in matches:
+        if patt.match(dt_str):
+            res = time.strptime(prepend + dt_str + postpend, fmt)
+            return int(time.mktime(res))
 
 def timedelta_hms_display(timedelta):
     hours = timedelta.days * 24 + timedelta.seconds / 3600

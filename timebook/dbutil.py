@@ -102,3 +102,21 @@ def get_entry_count(db):
         sheet = m.value;
     ''')
     return db.fetchone()[0]
+
+def get_most_recent_clockout(db, sheet):
+    db.execute(u'''
+    select
+        end_time
+    from
+        entry
+    where
+        sheet = ?
+    order by
+        -end_time
+    ''', (sheet,))
+    row = db.fetchone()
+    if not row:
+        # we've never clocked out on this timesheet
+        return None
+    else:
+        return row[0]

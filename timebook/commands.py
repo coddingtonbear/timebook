@@ -104,22 +104,34 @@ Notes may be specified for this period. This is exactly equivalent to
     parser.add_option('-s', '--switch', dest='switch', type='string',
                       help='Switch to another timesheet before \
 starting the timer.')
+    parser.add_option('-o', '--out', dest='out', action='store_true',
+                      default=False, help='''Clocks out before clocking \
+in''')
+    parser.add_option('-a', '--at', dest='at', type='string',
+                      help='''Set time of clock-in''')
     opts, args = parser.parse_args(args=args)
-    now = int(time.time())
     if opts.switch:
         sheet = opts.switch
         switch(db, [sheet])
     else:
         sheet = dbutil.get_current_sheet(db)
+    if opts.out:
+        clock_out(db)
+    timestamp = cmdutil.parse_date_time_or_now(opts.at)
     running = dbutil.get_active_info(db, sheet)
     if running is not None:
         raise SystemExit, 'error: timesheet already active'
+    most_recent_clockout = dbutil.get_most_recent_clockout(db, sheet)
+    if most_recent_clockout and timestamp < most_recent_clockout:
+        print most_recent_clockout
+        print timestamp
+        raise SystemExit, 'error: time periods could end up overlapping'
     description = u' '.join(args) or None
     db.execute(u'''
     insert into entry (
         sheet, start_time, description, extra
     ) values (?,?,?,?)
-    ''', (sheet, now, description, extra))
+    ''', (sheet, timestamp, description, extra))
 
 @command('delete a timesheet', aliases=('delete',))
 def kill(db, args):
@@ -266,16 +278,16 @@ the period that the out command ends.')
     parser.add_option('-a', '--at', dest='at',
                       help='Set time of clock-out')
     opts, args = parser.parse_args(args=args)
-    if not opts.at:
-        timestamp = int(time.time())
-    else:
-        timestamp = cmdutil.parse_date_time(opts.at)
+    clock_out(db, opts.at, opts.verbose)
+
+def clock_out(db, at=None, verbose=False):
+    timestamp = cmdutil.parse_date_time_or_now(at)
     active = dbutil.get_current_start_time(db)
     if active is None:
         raise SystemExit, 'error: timesheet not active'
     active_id, start_time = active
     active_time = timestamp - start_time
-    if opts.verbose:
+    if verbose:
         print timedelta(seconds=active_time)
     if active_time < 0:
         raise SystemExit, "Error: Negative active time"

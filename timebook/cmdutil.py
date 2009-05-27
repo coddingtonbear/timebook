@@ -73,6 +73,14 @@ def parse_date_time(dt_str):
         if patt.match(dt_str):
             res = time.strptime(prepend + dt_str + postpend, fmt)
             return int(time.mktime(res))
+    raise ValueError, "%s is not in a valid time format"%dt_str
+
+def parse_date_time_or_now(dt_str):
+    if dt_str:
+        return parse_date_time(dt_str)
+    else:
+        return int(time.time())
+
 
 def timedelta_hms_display(timedelta):
     hours = timedelta.days * 24 + timedelta.seconds / 3600

@@ -36,7 +36,7 @@ DEFAULTS = {'config': os.path.join(confdir, 'timebook.ini'),
             'timebook': os.path.join(confdir, 'sheets.db'),
             'encoding': locale.getpreferredencoding()}
 
-def parse_options():
+def make_parser():
     cmd_descs = ['%s - %s' % (k, commands[k].description) for k
                  in sorted(commands)]
     parser = OptionParser(usage='''usage: %%prog [OPTIONS] COMMAND \
@@ -55,6 +55,9 @@ alternate timebook file (default: "%s").' % DEFAULTS['timebook'])
                       default=DEFAULTS['encoding'], help='Specify an \
 alternate encoding to decode command line options and arguments (default: \
 "%s")' % DEFAULTS['encoding'])
+    return parser
+
+def parse_options(parser):
     options, args = parser.parse_args()
     encoding = options.__dict__.pop('encoding')
     try:
@@ -69,15 +72,16 @@ alternate encoding to decode command line options and arguments (default: \
         args = ['now'] + args
     return options, args
 
+
 def run_from_cmdline():
-    options, args = parse_options()
+    parser = make_parser()
+    options, args = parse_options(parser)
     config = parse_config(options.config)
     db = Database(options.timebook, config)
     cmd, args = args[0], args[1:]
     try:
         run_command(db, cmd, args)
     except NoMatch, e:
-        raise SystemExit, 'error: %s' % e.args[0]
+        parser.error('%s' % e.args[0])
     except AmbiguousLookup, e:
-        raise SystemExit, 'error: %s\n    %s' % (e.args[0],
-                                                 ' '.join(e.args[1]))
+        parser.error('%s\n    %s' % (e.args[0], ' '.join(e.args[1])))

@@ -115,9 +115,9 @@ in''')
         switch(db, [sheet])
     else:
         sheet = dbutil.get_current_sheet(db)
-    if opts.out:
-        clock_out(db)
     timestamp = cmdutil.parse_date_time_or_now(opts.at)
+    if opts.out:
+        clock_out(db, timestamp=timestamp)
     running = dbutil.get_active_info(db, sheet)
     if running is not None:
         raise SystemExit, 'error: timesheet already active'
@@ -280,8 +280,9 @@ the period that the out command ends.')
     opts, args = parser.parse_args(args=args)
     clock_out(db, opts.at, opts.verbose)
 
-def clock_out(db, at=None, verbose=False):
-    timestamp = cmdutil.parse_date_time_or_now(at)
+def clock_out(db, at=None, verbose=False, timestamp=None):
+    if not timestamp:
+        timestamp = cmdutil.parse_date_time_or_now(at)
     active = dbutil.get_current_start_time(db)
     if active is None:
         raise SystemExit, 'error: timesheet not active'

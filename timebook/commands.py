@@ -123,8 +123,6 @@ in''')
         raise SystemExit, 'error: timesheet already active'
     most_recent_clockout = dbutil.get_most_recent_clockout(db, sheet)
     if most_recent_clockout and timestamp < most_recent_clockout:
-        print most_recent_clockout
-        print timestamp
         raise SystemExit, 'error: time periods could end up overlapping'
     description = u' '.join(args) or None
     db.execute(u'''

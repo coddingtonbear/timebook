@@ -353,6 +353,9 @@ timesheet instead.''')
     parser.add_option('-s', '--simple', dest='simple',
                       action='store_true', help='Only display the name \
 of the current timesheet.')
+    parser.add_option('-n', '--notes', dest='notes',
+                      action='store_true', help='Only display the notes \
+associated with the current period.')
     opts, args = parser.parse_args(args=args)
 
     if opts.simple:
@@ -371,15 +374,20 @@ of the current timesheet.')
 usage, see "%(prog)s --help".' % {'prog': os.path.basename(sys.argv[0])}
 
     running = dbutil.get_active_info(db, sheet)
+    notes = ''
     if running is None:
         active = 'not active'
     else:
         duration = str(timedelta(seconds=running[0]))
         if running[1]:
-            active = '%s (%s)' % (duration, running[1].rstrip('.'))
+            notes = running[1].rstrip('.')
+            active = '%s (%s)' % (duration, notes)
         else:
             active = duration
-    print '%s: %s' % (sheet, active)
+    if opts.notes:
+        print notes
+    else:
+        print '%s: %s' % (sheet, active)
 
 @command('display timesheet, by default the current one',
          aliases=('export', 'format', 'show'))

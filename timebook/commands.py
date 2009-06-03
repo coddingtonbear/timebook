@@ -246,7 +246,7 @@ number of entries of the timesheet.')
     # optimization: check that the given timesheet is not already
     # current. updates are far slower than selects.
     if dbutil.get_current_sheet(db) != sheet:
-            db.execute(u'''
+        db.execute(u'''
         update
             meta
         set

@@ -88,19 +88,15 @@ def get_current_start_time(db):
     ''')
     return db.fetchone()
 
-def get_entry_count(db):
+def get_entry_count(db, sheet):
     db.execute(u'''
     select
         count(*)
     from
         entry e
-    inner join
-        meta m
-    on
-        key = 'current_sheet'
     where
-        sheet = m.value;
-    ''')
+        sheet = ?
+    ''', (sheet,))
     return db.fetchone()[0]
 
 def get_most_recent_clockout(db, sheet):

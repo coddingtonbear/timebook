@@ -256,7 +256,7 @@ number of entries of the timesheet.')
         ''', (args[0],))
 
     if opts.verbose:
-        entry_count = dbutil.get_entry_count(db)
+        entry_count = dbutil.get_entry_count(db, sheet)
         if entry_count == 0:
             print u'switched to empty timesheet "%s"' % sheet
         else:
@@ -368,7 +368,7 @@ associated with the current period.')
     else:
         sheet = dbutil.get_current_sheet(db)
 
-    entry_count = dbutil.get_entry_count(db)
+    entry_count = dbutil.get_entry_count(db, sheet)
     if entry_count == 0:
         raise SystemExit, '%(prog)s: error: sheet is empty. For program \
 usage, see "%(prog)s --help".' % {'prog': os.path.basename(sys.argv[0])}

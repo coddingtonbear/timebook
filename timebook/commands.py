@@ -109,6 +109,9 @@ starting the timer.')
 in''')
     parser.add_option('-a', '--at', dest='at', type='string',
                       help='''Set time of clock-in''')
+    parser.add_option('-r', '--resume', dest='resume', action='store_true',
+                      default=False, help='''Clocks in with status of \
+last active period''')
     opts, args = parser.parse_args(args=args)
     if opts.switch:
         sheet = opts.switch
@@ -122,9 +125,14 @@ in''')
     if running is not None:
         raise SystemExit, 'error: timesheet already active'
     most_recent_clockout = dbutil.get_most_recent_clockout(db, sheet)
-    if most_recent_clockout and timestamp < most_recent_clockout:
-        raise SystemExit, 'error: time periods could end up overlapping'
     description = u' '.join(args) or None
+    if most_recent_clockout:
+        (previous_timestamp, previous_description) = most_recent_clockout
+        if timestamp < previous_timestamp:
+            raise SystemExit, \
+                  'error: time periods could end up overlapping'
+        if opts.resume:
+            description = previous_description
     db.execute(u'''
     insert into entry (
         sheet, start_time, description, extra

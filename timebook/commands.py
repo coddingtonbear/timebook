@@ -118,6 +118,9 @@ last active period''')
         switch(db, [sheet])
     else:
         sheet = dbutil.get_current_sheet(db)
+    if opts.resume and args:
+        parser.error('"--resume" already sets a note, and is incompatible \
+with arguments.')
     timestamp = cmdutil.parse_date_time_or_now(opts.at)
     if opts.out:
         clock_out(db, timestamp=timestamp)
@@ -284,6 +287,8 @@ the period that the out command ends.')
     parser.add_option('-a', '--at', dest='at',
                       help='Set time of clock-out')
     opts, args = parser.parse_args(args=args)
+    if args:
+        parser.error('"t out" takes no arguments.')
     clock_out(db, opts.at, opts.verbose)
 
 def clock_out(db, at=None, verbose=False, timestamp=None):

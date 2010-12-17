@@ -93,6 +93,11 @@ Run an interactive database session on the timebook database. Requires
 the sqlite3 command.''')
     subprocess.call(('sqlite3', db.path))
 
+@command('start a new task on the current timesheet', name='change')
+def change(db, args, extra = None):
+    out(db, [])
+    in_(db, args)
+
 @command('start the timer for the current timesheet', name='in',
          aliases=('start',))
 def in_(db, args, extra=None):
@@ -442,6 +447,8 @@ style (--format=plain) or csv --format=csv")
     if opts.start is not None:
         start = cmdutil.parse_date_time(opts.start)
         where += ' and start_time >= %s' % start
+    else:
+        where += ' and start_time > STRFTIME(\'%s\', \'now\', \'-7 days\', \'start of day\', \'utc\')'
     if opts.end is not None:
         end = cmdutil.parse_date_time(opts.end)
         where += ' and end_time <= %s' % end

@@ -21,8 +21,8 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-__author__ = 'Trevor Caira <trevor@caira.com>'
-__version__ = (1, 2, 0)
+__author__ = 'Trevor Caira <trevor@caira.com>, Adam Coddington <me@adamcoddington.net>'
+__version__ = (1, 3, 0)
 
 def get_version():
     return '.'.join(str(bit) for bit in __version__)

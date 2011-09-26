@@ -407,6 +407,72 @@ usage, see "%(prog)s --help".' % {'prog': os.path.basename(sys.argv[0])}
     else:
         print '%s: %s' % (sheet, active)
 
+@command('change details about a specific entry in the timesheet')
+def modify(db, args):
+    if len(args) < 1:
+        raise Exception("You must select the ID number of an entry of you'd like to modify.")
+    id = args[0]
+    db.execute(u"""
+        SELECT start_time, end_time, description
+        FROM entry WHERE id = ?
+    """, (id, ))
+    row = db.fetchone()
+    start = datetime.fromtimestamp(row[0])
+    end = datetime.fromtimestamp(row[1])
+
+    new_start = raw_input("Start Time (\"%s\"):\t" % (
+            start.strftime("%H:%M")
+        ))
+    if(new_start):
+        dt_newstart = datetime.strptime(
+                    new_start,
+                    "%H:%M",
+                )
+        dt_newstart = datetime(
+                    start.year,
+                    start.month,
+                    start.day,
+                    dt_newstart.hour,
+                    dt_newstart.minute,
+                    0,
+                )
+    else:
+        dt_newstart = start
+    new_end = raw_input("End time (\"%s\"):\t" % (
+            end.strftime("%H:%M")
+        ))
+    if(new_end):
+        dt_newend = datetime.strptime(
+                    new_end,
+                    "%H:%M",
+                )
+        dt_newend = datetime(
+                    end.year,
+                    end.month,
+                    end.day,
+                    dt_newend.hour,
+                    dt_newend.minute,
+                    0,
+                )
+    else:
+        dt_newend = end
+    description = raw_input("Description (\"%s\"):\t" % (
+            row[2]
+        ))
+    if not description:
+        description = row[2]
+
+    sql = """
+        UPDATE entry SET start_time = ?, end_time = ?, description = ? WHERE id = ?
+        """
+    args = (
+            int(time.mktime(dt_newstart.timetuple())),
+            int(time.mktime(dt_newend.timetuple())),
+            description,
+            id
+        )
+    db.execute(sql, args)
+
 @command('display timesheet, by default the current one',
          aliases=('export', 'format', 'show'))
 def display(db, args):
@@ -432,6 +498,7 @@ YYYY-MM-DD.')
                   default='plain',
                   help="Select whether to output in the normal timebook \
 style (--format=plain) or csv --format=csv")
+    parser.add_option('-i', '--show-ids', dest='show_ids', action='store_true', default=False);
     opts, args = parser.parse_args(args=args)
 
     # grab correct sheet
@@ -453,13 +520,13 @@ style (--format=plain) or csv --format=csv")
         end = cmdutil.parse_date_time(opts.end)
         where += ' and end_time <= %s' % end
     if opts.format == 'plain':
-        format_timebook(db, sheet, where)
+        format_timebook(db, sheet, where, show_ids = opts.show_ids)
     elif opts.format == 'csv':
-        format_csv(db, sheet, where)
+        format_csv(db, sheet, where, show_ids = opts.show_ids)
     else:
         raise SystemExit, 'Invalid format: %s' % opts.format
 
-def format_csv(db, sheet, where):
+def format_csv(db, sheet, where, show_ids = False):
     import csv
 
     writer = csv.writer(sys.stdout)
@@ -470,7 +537,8 @@ def format_csv(db, sheet, where):
        end_time,
        ifnull(end_time, strftime('%%s', 'now')) -
            start_time,
-       description
+       description,
+       id
     from
        entry
     where
@@ -480,12 +548,35 @@ def format_csv(db, sheet, where):
     format = lambda t: datetime.fromtimestamp(t).strftime(
         '%m/%d/%Y %H:%M:%S')
     rows = db.fetchall()
-    writer.writerows(map(lambda row: (
-        format(row[0]), format(row[1]), row[2], row[3]), rows))
+    if(show_ids):
+        writer.writerows(
+            map(
+                lambda row: (
+                    format(row[0]), 
+                    format(row[1]), 
+                    row[2], 
+                    row[3], 
+                    row[4]
+                ), 
+                rows
+            )
+        )
+    else:
+        writer.writerows(
+            map(
+                lambda row: (
+                    format(row[0]), 
+                    format(row[1]), 
+                    row[2], 
+                    row[3]
+                ), 
+                rows
+            )
+        )
     total_formula = '=SUM(C2:C%d)/3600' % (len(rows) + 1)
     writer.writerow(('Total', '', total_formula, ''))
 
-def format_timebook(db, sheet, where):
+def format_timebook(db, sheet, where, show_ids = False):
     db.execute(u'''
     select count(*) > 0 from entry where sheet = ?%s
     ''' % where, (sheet,))
@@ -500,7 +591,10 @@ def format_timebook(db, sheet, where):
             cmdutil.timedelta_hms_display(timedelta(seconds=t))
 
     last_day = None
-    table = [['Day', 'Start      End', 'Duration', 'Notes']]
+    if(show_ids):
+        table = [['Day', 'Start      End', 'Duration', 'ID', 'Notes']]
+    else:
+        table = [['Day', 'Start      End', 'Duration', 'Notes', '']]
     db.execute(u'''
     select
         date(e.start_time, 'unixepoch', 'localtime') as day,
@@ -524,7 +618,8 @@ def format_timebook(db, sheet, where):
         e.end_time as end,
         ifnull(e.end_time, strftime('%%s', 'now')) - e.start_time as
             duration,
-        ifnull(e.description, '') as description
+        ifnull(e.description, '') as description,
+        id
     from
         entry e
     where
@@ -533,8 +628,9 @@ def format_timebook(db, sheet, where):
         day asc;
     ''' % where, (sheet,))
     entries = db.fetchall()
-    for i, (day, start, end, duration, description) in \
+    for i, (day, start, end, duration, description, id) in \
             enumerate(entries):
+        id = str(id)
         date = displ_date(start)
         diff = displ_total(duration)
         if end is None:
@@ -544,16 +640,22 @@ def format_timebook(db, sheet, where):
         if last_day == day:
             # If this row doesn't represent the first entry of the
             # day, don't display anything in the day column.
-            table.append(['', trange, diff, description])
+            if(show_ids):
+                table.append(['', trange, diff, id, description])
+            else:
+                table.append(['', trange, diff, description, ''])
         else:
             if last_day is not None:
                 # Use day_total set (below) from the previous
                 # iteration. This is skipped the first iteration,
                 # since last_day is None.
-                table.append(['', '', displ_total(day_total), ''])
+                table.append(['', '', displ_total(day_total), '', ''])
             cur_day, day_total = days_iter.next()
             assert day == cur_day
-            table.append([date, trange, diff, description])
+            if(show_ids):
+                table.append([date, trange, diff, id, description])
+            else:
+                table.append([date, trange, diff, description, ''])
             last_day = day
 
     db.execute(u'''
@@ -566,6 +668,6 @@ def format_timebook(db, sheet, where):
         e.sheet = ?%s;
     ''' % where, (sheet,))
     total = displ_total(db.fetchone()[0])
-    table += [['', '', displ_total(day_total), ''],
-              ['Total', '', total, '']]
+    table += [['', '', displ_total(day_total), '', ''],
+              ['Total', '', total, '', '']]
     cmdutil.pprint_table(table, footer_row=True)

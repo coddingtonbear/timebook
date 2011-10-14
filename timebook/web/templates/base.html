@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Timebook Status</title>
+    <style type="text/css">
+      body {
+        font-family: sans-serif;
+        position: relative;
+      }
+      body em, body a {
+        /*font-family: 'Avant Garde', 'Futura', 'Century Gothic', 'URW Gothic L', sans-serif;*/
+        font-style: normal;
+      }
+      div.content {
+        width: 800px;
+        margin: 0 auto;
+        position: relative;
+      }
+      div#current {
+        width: 750px;
+        position: absolute;
+        left: -100px;
+      }
+      div#other_tasks {
+        position: absolute;
+        top: 400px;
+        width: 700px;
+        font-size: 80%;
+      }
+      table.todays_tasks {
+        width: 100%;
+      }
+      h1 {
+        margin-bottom: 0px;
+        font-size: 50pt;
+        font-weight: normal;
+      }
+      h1 em {
+        color: #666666;
+      }
+      p {
+        margin-top: 0px;
+      }
+      thead {
+        background-color: #DDDDDD;
+      }
+      th {
+        font-size: 10pt;
+        text-align: left;
+        font-weight: 700;
+      }
+      td {
+        text-align: left;
+      }
+      td.description {
+        font-weight: 700;
+      }
+      td.time, td.hours {
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="content">
+      {% block content %}
+      {% endblock %}
+    </div>
+  </body>
+</html>

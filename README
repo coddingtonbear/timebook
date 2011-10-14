@@ -155,7 +155,7 @@ Commands
   aliases: *ls*
 
 **modify**
-  Provides a facility for one to modify a previously-entered timesheet.
+  Provides a facility for one to modify a previously-entered timesheet entry.
 
   Requires the ID# of the timesheet entry; please see the command
   named *display* above.

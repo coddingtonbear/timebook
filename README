@@ -100,7 +100,10 @@ Commands
   Display a given timesheet. If no timesheet is specified, show the
   current timesheet.
 
-  usage: ``t display [TIMESHEET]``
+  Additionally allows one to display the ID#s for individual timesheet
+  entries (for making modifications).
+
+  usage: ``t display [--show-ids] [TIMESHEET]``
 
   aliases: *show*
 
@@ -114,6 +117,18 @@ Commands
   usage: ``t format [--start DATE] [--end DATE] [TIMESHEET]``
 
   aliases: *csv*, *export*
+
+**hours**
+  Calculates your timesheet's current balance for the current pay period
+  given a 40-hour work week.
+
+  Uses entries in additional tables named *unpaid*, *vacation*, and *holiday*
+  to calculate whether a specific day counts as one during which you are
+  expecting to reach eight hours.
+
+  usage: ``t hours``
+
+  aliases: *payperiod*, *pay*, *period*, *offset*
 
 **in**
   Start the timer for the current timesheet. Must be called before out.
@@ -139,6 +154,14 @@ Commands
 
   aliases: *ls*
 
+**modify**
+  Provides a facility for one to modify a previously-entered timesheet.
+
+  Requires the ID# of the timesheet entry; please see the command
+  named *display* above.
+
+  usage ``t modify ID``
+
 **now**
   Print the current sheet, whether it's active, and if so, how long it
   has been active and what notes are associated with the current period.
@@ -156,6 +179,21 @@ Commands
   usage: ``t out [--verbose] [TIMESHEET]``
 
   aliases: *stop*
+
+**post**
+  Posts your current timesheet to our internal hours tracking system.
+
+  Should you have a configuration file in a file at ``~/.timetracker`` with
+  information in the following format:
+
+    [auth]
+    username = YOUR_USERNAME
+    password = YOUR_PASSWORD
+
+  The application will not require your input to post hours (otherwise, you
+  will be prompted for your credentials).
+
+  usage ``t post [--date=YYYY-MM-DD]``
 
 **running**
   Print all active sheets and any messages associated with them.

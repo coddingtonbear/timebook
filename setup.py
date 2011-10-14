@@ -19,4 +19,7 @@ setup(
     packages=['timebook', 'timebook.web',],
     entry_points={'console_scripts': [
         't = timebook.cmdline:run_from_cmdline']},
+    install_requires = [
+            'python-dateutil',
+        ]
 )

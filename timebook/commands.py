@@ -24,13 +24,16 @@
 from datetime import datetime, timedelta
 from functools import wraps
 from gettext import ngettext
-from optparse import OptionParser
 import os
+import optparse
+import re
 import subprocess
 import sys
 import time
 
+from timebook import LOGIN_URL, TIMESHEET_URL, TIMESHEET_DB, CONFIG
 from timebook import dbutil, cmdutil
+from timebook.autopost import ParthenonTimeTracker
 
 commands = {}
 cmd_aliases = {}
@@ -83,11 +86,27 @@ def run_command(db, cmd, args):
     else:
         db.execute(u'commit')
 
+def get_date_from_cli_string(option,  option_str, value, parser):
+    if(value == 'today'):
+        the_date = datetime.now().date()
+    elif(value == 'yesterday'):
+        the_date = (datetime.now() + timedelta(days = -1)).date()
+    elif(re.match("^-\d+$", value)):
+        the_date = (datetime.now() + timedelta(days = int(value))).date()
+    elif(re.match("^\d{4}-\d{2}-\d{2}$", value)):
+        try:
+            the_date = datetime.strptime(value, "%Y-%m-%d").date()
+        except Exception, e:
+            raise optparse.OptionValueError("'%s' does not match format YYYY-MM-DD" % value)
+    else:
+        raise optparse.OptionValueError("Unrecognized date argument.")
+    setattr(parser.values, option.dest, the_date)
+
 # Commands
 
 @command("open the backend's interactive shell", aliases=('shell',))
 def backend(db, args):
-    parser = OptionParser(usage='''usage: %prog backend
+    parser = optparse.OptionParser(usage='''usage: %prog backend
 
 Run an interactive database session on the timebook database. Requires
 the sqlite3 command.''')
@@ -98,10 +117,53 @@ def change(db, args, extra = None):
     out(db, [])
     in_(db, args)
 
+@command('post timesheet hours to timesheet online', name='post')
+def post(db, args, extra = None):
+    parser = optparse.OptionParser()
+    parser.add_option("--date", type="string", action="callback",
+            help="Date for which to post timesheet entries for.  Must be in either YYYY-MM-DD format, be the string 'yesterday' or 'today', or be a negative number indicating the number of days ago for which to run the report.  (default: today)",
+            callback = get_date_from_cli_string,
+            dest = "date",
+            default = datetime.now().date()
+        )
+    parser.add_option("--login-url", type="string",
+            help="URL to use for getting a log-in cookie (In our case, this should be the URL for Mantis).",
+            dest = "login_url",
+            default = LOGIN_URL
+            )
+    parser.add_option("--timesheet-url", type="string",
+            help="URL to post timesheet entries to.",
+            dest = "timesheet_url",
+            default = TIMESHEET_URL
+            )
+    parser.add_option("--db", type="string",
+            help="Database file to gather timesheet entries from.",
+            dest = "timesheet_db",
+            default = TIMESHEET_DB
+            )
+    parser.add_option("--config", type="string",
+            help="Configuration file to use for automatically answering prompts.",
+            dest = "config",
+            default = CONFIG
+            )
+    (options, args, ) = parser.parse_args()
+
+    with ParthenonTimeTracker(
+            options.login_url,
+            options.timesheet_url,
+            options.timesheet_db,
+            options.config,
+            options.date
+            ) as app:
+        try:
+            app.main()
+        except Exception, e:
+            print e
+
 @command('start the timer for the current timesheet', name='in',
          aliases=('start',))
 def in_(db, args, extra=None):
-    parser = OptionParser(usage='''usage: %prog in [NOTES...]
+    parser = optparse.OptionParser(usage='''usage: %prog in [NOTES...]
 
 Start the timer for the current timesheet. Must be called before out.
 Notes may be specified for this period. This is exactly equivalent to
@@ -149,7 +211,7 @@ with arguments.')
 
 @command('delete a timesheet', aliases=('delete',))
 def kill(db, args):
-    parser = OptionParser(usage='''usage: %prog kill [TIMESHEET]
+    parser = optparse.OptionParser(usage='''usage: %prog kill [TIMESHEET]
 
 Delete a timesheet. If no timesheet is specified, delete the current
 timesheet and switch to the default timesheet.''')
@@ -179,7 +241,7 @@ timesheet and switch to the default timesheet.''')
 
 @command('show the available timesheets', aliases=('ls',))
 def list(db, args):
-    parser = OptionParser(usage='''usage: %prog list
+    parser = optparse.OptionParser(usage='''usage: %prog list
 
 List the available timesheets.''')
     parser.add_option('-s', '--simple', dest='simple',
@@ -245,7 +307,7 @@ of the available timesheets.')
 
 @command('switch to a new timesheet')
 def switch(db, args):
-    parser = OptionParser(usage='''usage: %prog switch TIMESHEET
+    parser = optparse.OptionParser(usage='''usage: %prog switch TIMESHEET
 
 Switch to a new timesheet. This causes all future operation (except switch)
 to operate on that timesheet. The default timesheet is called
@@ -283,7 +345,7 @@ number of entries of the timesheet.')
 
 @command('stop the timer for the current timesheet', aliases=('stop',))
 def out(db, args):
-    parser = OptionParser(usage='''usage: %prog out
+    parser = optparse.OptionParser(usage='''usage: %prog out
 
 Stop the timer for the current timesheet. Must be called after in.''')
     parser.add_option('-v', '--verbose', dest='verbose',
@@ -319,7 +381,7 @@ def clock_out(db, at=None, verbose=False, timestamp=None):
 
 @command('alter the description of the active period', aliases=('write',))
 def alter(db, args):
-    parser = OptionParser(usage='''usage: %prog alter NOTES...
+    parser = optparse.OptionParser(usage='''usage: %prog alter NOTES...
 
 Inserts a note associated with the currently active period in the \
 timesheet. For example, ``t alter Documenting timebook.``''')
@@ -340,7 +402,7 @@ timesheet. For example, ``t alter Documenting timebook.``''')
 
 @command('show all running timesheets', aliases=('active',))
 def running(db, args):
-    parser = OptionParser(usage='''usage: %prog running
+    parser = optparse.OptionParser(usage='''usage: %prog running
 
 Print all active sheets and any messages associated with them.''')
     opts, args = parser.parse_args(args=args)
@@ -360,7 +422,7 @@ Print all active sheets and any messages associated with them.''')
 @command('show the status of the current timesheet',
          aliases=('info',))
 def now(db, args):
-    parser = OptionParser(usage='''usage: %prog now [TIMESHEET]
+    parser = optparse.OptionParser(usage='''usage: %prog now [TIMESHEET]
 
 Print the current sheet, whether it's active, and if so, how long it
 has been active and what notes are associated with the current
@@ -477,7 +539,7 @@ def modify(db, args):
          aliases=('export', 'format', 'show'))
 def display(db, args):
     # arguments
-    parser = OptionParser(usage='''usage: %prog display [TIMESHEET]
+    parser = optparse.OptionParser(usage='''usage: %prog display [TIMESHEET]
 
 Display the data from a timesheet in the range of dates specified, either
 in the normal timebook fashion (using --format=plain) or as

@@ -22,7 +22,13 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 __author__ = 'Trevor Caira <trevor@caira.com>, Adam Coddington <me@adamcoddington.net>'
-__version__ = (1, 3, 0)
+__version__ = (1, 5, 0)
 
 def get_version():
     return '.'.join(str(bit) for bit in __version__)
+
+LOGIN_URL = "http://www.parthenonsoftware.com/timesheet/index.php"
+TIMESHEET_URL = "http://www.parthenonsoftware.com/timesheet/timesheet.php"
+TIMESHEET_DB = "~/.config/timebook/sheets.db"
+CONFIG = "~/.timetracker"
+

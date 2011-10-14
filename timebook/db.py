@@ -48,6 +48,21 @@ class Database(object):
             description varchar(64),
             extra blob
         );
+        CREATE TABLE if not exists holidays (
+            year integer default null, 
+            month integer, 
+            day integer
+        );
+        CREATE TABLE if not exists unpaid (
+            year integer default null, 
+            month integer, 
+            day integer
+        );
+        CREATE TABLE if not exists vacation (
+            year integer default null, 
+            month integer, 
+            day integer
+        );
         create index if not exists entry_sheet on entry (sheet);
         create index if not exists entry_start_time on entry (start_time);
         create index if not exists entry_end_time on entry (end_time);

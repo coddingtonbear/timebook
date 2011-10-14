@@ -130,6 +130,11 @@ def gather_information(view_func, *args, **kwargs):
         return view_func(cursor, human_username, *args, **kwargs)
     return _wrapped_view_func
 
+@app.route("/balance/")
+@gather_information
+def balance(cursor, human_username):
+    return ""
+
 @app.route("/")
 @gather_information
 def index(cursor, human_username):

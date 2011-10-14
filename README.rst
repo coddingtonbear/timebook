@@ -184,7 +184,7 @@ Commands
   Posts your current timesheet to our internal hours tracking system.
 
   Should you have a configuration file in a file at ``~/.timetracker`` with
-  information in the following format:
+  information in the following format::
 
     [auth]
     username = YOUR_USERNAME

@@ -72,7 +72,6 @@ def parse_options(parser):
         args = ['now'] + args
     return options, args
 
-
 def run_from_cmdline():
     parser = make_parser()
     options, args = parse_options(parser)

@@ -63,6 +63,9 @@
                 {% else %}
                   {{ entry.description }}
                 {% endif %}
+                {% if entry.chili_detail %}
+                  {{ entry.chili_detail }}
+                {% endif %}
               </td>
             </tr>
           {% endfor %}

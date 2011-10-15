@@ -1,21 +1,65 @@
+from ConfigParser import ConfigParser
+import base64
 import datetime
 import logging
 import os.path
+import json
 import re
 import sqlite3
 import subprocess
 import time
+import urllib2
 from functools import wraps
 
 from flask import Flask, render_template
 
 app = Flask(__name__)
 
-HOME_DIR = "/home/";
+HOME_DIR = "/home/"
+CHILIPROJECT_ISSUE = "http://chili.parthenonsoftware.internal/issues/%s.json"
+
+class ChiliprojectLookupHelper(object):
+    def __init__(self):
+        self.config_path = os.path.expanduser(
+                    "~/.timetracker"
+                )
+        self.config = ConfigParser()
+        self.loaded = False
+        if os.path.exists(self.config_path):
+            self.config.read([self.config_path, ])
+            try:
+                self.username = self.config.get("auth", "username")
+                self.password = self.config.get("auth", "password")
+                self.loaded = True
+            except Exception as e:
+                raise e
+
+    def get_description_for_ticket(self, ticket_number):
+        if not self.loaded:
+            return None
+        else:
+            try:
+                request = urllib2.Request(CHILIPROJECT_ISSUE % ticket_number)
+                request.add_header(
+                            "Authorization",
+                            base64.encodestring(
+                                    "%s:%s" % (
+                                            self.username,
+                                            self.password
+                                        )
+                                ).replace("\n", "")
+                        )
+                result = urllib2.urlopen(request)
+                return json.loads(result)["issue"]["subject"]
+            except Exception as e:
+                return e
 
 class TimesheetRow(object):
     TICKET_MATCHER = re.compile(r"^(\d{4,6})(?:[^0-9]|$)+")
     TICKET_URL = "http://chili.parthenonsoftware.com/issues/%s/"
+
+    def __init__(self):
+        self.lookup_handler = False
 
     @staticmethod
     def from_row(row):
@@ -27,11 +71,20 @@ class TimesheetRow(object):
         t.hours = row[4]
         return t
 
+    def set_lookup_handler(self, handler):
+        self.lookup_handler = handler
+
     @property
     def is_active(self):
         if not self.end_time_epoch:
             return True
         return False
+
+    @property
+    def chili_detail(self):
+        if self.lookup_handler:
+            if self.ticket_number:
+                return self.lookup_handler.get_description_for_ticket(self.ticket_number)
 
     @property
     def start_time(self):
@@ -46,6 +99,11 @@ class TimesheetRow(object):
     def is_ticket(self):
         if self.description and self.TICKET_MATCHER.match(self.description):
             return True
+
+    @property
+    def ticket_number(self):
+        if self.is_ticket:
+            return self.TICKET_MATCHER.match(self.description).groups()[0]
 
     @property
     def ticket_url(self):
@@ -63,8 +121,14 @@ class TimesheetRow(object):
     def total_hours(self):
         return float(self.end_time_epoch_or_now - self.start_time_epoch) / 3600
 
+CHILIPROJECT_LOOKUP = None
 def timesheet_row_factory(cursor, row):
-    return TimesheetRow.from_row(row)
+    global CHILIPROJECT_LOOKUP
+    if not CHILIPROJECT_LOOKUP:
+        CHILIPROJECT_LOOKUP = ChiliprojectLookupHelper()
+    ts = TimesheetRow.from_row(row)
+    ts.set_lookup_handler(CHILIPROJECT_LOOKUP)
+    return ts
 
 def dict_factory(cursor, row):
     d = {}

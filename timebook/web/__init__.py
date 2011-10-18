@@ -16,12 +16,17 @@ from flask import Flask, render_template
 app = Flask(__name__)
 
 HOME_DIR = "/home/"
-CHILIPROJECT_ISSUE = "http://chili.parthenonsoftware.internal/issues/%s.json"
+CHILIPROJECT_ISSUE = "http://chili.parthenonsoftware.com/issues/%s.json"
 
 class ChiliprojectLookupHelper(object):
+    PROJECT_CACHE = {}
+
     def __init__(self):
-        self.config_path = os.path.expanduser(
-                    "~/.timetracker"
+        self.config_path = os.path.join(
+                    get_user_path(
+                            get_best_user_guess()
+                        ),
+                    ".timetracker"
                 )
         self.config = ConfigParser()
         self.loaded = False
@@ -32,27 +37,35 @@ class ChiliprojectLookupHelper(object):
                 self.password = self.config.get("auth", "password")
                 self.loaded = True
             except Exception as e:
-                raise e
+                pass
 
     def get_description_for_ticket(self, ticket_number):
         if not self.loaded:
             return None
         else:
             try:
-                request = urllib2.Request(CHILIPROJECT_ISSUE % ticket_number)
-                request.add_header(
-                            "Authorization",
-                            base64.encodestring(
-                                    "%s:%s" % (
-                                            self.username,
-                                            self.password
-                                        )
-                                ).replace("\n", "")
+                if ticket_number in self.PROJECT_CACHE.keys():
+                    data = self.PROJECT_CACHE[ticket_number]
+                else:
+                    request = urllib2.Request(CHILIPROJECT_ISSUE % ticket_number)
+                    request.add_header(
+                                "Authorization",
+                                base64.encodestring(
+                                        "%s:%s" % (
+                                                self.username,
+                                                self.password
+                                            )
+                                    ).replace("\n", "")
+                            )
+                    result = urllib2.urlopen(request).read()
+                    data = json.loads(result)
+                    self.PROJECT_CACHE[ticket_number] = data
+                return "%s: %s" % (
+                            data["issue"]["project"]["name"],
+                            data["issue"]["subject"],
                         )
-                result = urllib2.urlopen(request)
-                return json.loads(result)["issue"]["subject"]
             except Exception as e:
-                return e
+                return None
 
 class TimesheetRow(object):
     TICKET_MATCHER = re.compile(r"^(\d{4,6})(?:[^0-9]|$)+")

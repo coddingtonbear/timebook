@@ -6,7 +6,7 @@
       <h1><em>{{ human_username }}</em>
         {% if current.is_ticket %}
           is working on ticket
-          <a href="{{ current.ticket_url }}">#{{ current.description }}</a>
+          <a href="{{ current.ticket_url }}" {% if current.chili_detail %}title="{{ current.chili_detail }}"{% endif %}>#{{ current.description }}</a>
         {% elif current.description %}
           is working on
           <strong>{{ current.description }}</strong>
@@ -64,7 +64,7 @@
                   {{ entry.description }}
                 {% endif %}
                 {% if entry.chili_detail %}
-                  {{ entry.chili_detail }}
+                  <span>{{ entry.chili_detail }}</span>
                 {% endif %}
               </td>
             </tr>

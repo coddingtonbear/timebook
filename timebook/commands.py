@@ -649,7 +649,11 @@ def modify(db, args):
     """, (id, ))
     row = db.fetchone()
     start = datetime.fromtimestamp(row[0])
-    end = datetime.fromtimestamp(row[1])
+    try:
+        end = datetime.fromtimestamp(row[1])
+    except TypeError:
+        end = None
+
 
     new_start = raw_input("Start Time (\"%s\"):\t" % (
             start.strftime("%H:%M")
@@ -670,7 +674,7 @@ def modify(db, args):
     else:
         dt_newstart = start
     new_end = raw_input("End time (\"%s\"):\t" % (
-            end.strftime("%H:%M")
+            end.strftime("%H:%M") if end else None
         ))
     if(new_end):
         dt_newend = datetime.strptime(
@@ -698,7 +702,7 @@ def modify(db, args):
         """
     args = (
             int(time.mktime(dt_newstart.timetuple())),
-            int(time.mktime(dt_newend.timetuple())),
+            int(time.mktime(dt_newend.timetuple())) if dt_newend else None,
             description,
             id
         )

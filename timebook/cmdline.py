@@ -23,7 +23,6 @@
 
 import locale
 from optparse import OptionParser
-import os
 
 from timebook import get_version
 from timebook.db import Database
@@ -31,9 +30,10 @@ from timebook.commands import commands, run_command
 from timebook.config import parse_config
 from timebook.cmdutil import AmbiguousLookup, NoMatch
 
-confdir = os.path.expanduser(os.path.join('~', '.config', 'timebook'))
-DEFAULTS = {'config': os.path.join(confdir, 'timebook.ini'),
-            'timebook': os.path.join(confdir, 'sheets.db'),
+from timebook import CONFIG_FILE, TIMESHEET_DB
+
+DEFAULTS = {'config': CONFIG_FILE,
+            'timebook': TIMESHEET_DB,
             'encoding': locale.getpreferredencoding()}
 
 def make_parser():

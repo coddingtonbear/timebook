@@ -63,6 +63,12 @@ class Database(object):
             month integer, 
             day integer
         );
+        CREATE TABLE if not exists ticket_info (
+            id integer primary key not null,
+            number integer,
+            project string,
+            details string
+        );
         create index if not exists entry_sheet on entry (sheet);
         create index if not exists entry_start_time on entry (start_time);
         create index if not exists entry_end_time on entry (end_time);

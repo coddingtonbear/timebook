@@ -34,7 +34,8 @@ import time
 from dateutil import relativedelta
 from dateutil import rrule
 
-from timebook import LOGIN_URL, TIMESHEET_URL, TIMESHEET_DB, CONFIG
+from timebook import LOGIN_URL, TIMESHEET_URL, TIMESHEET_DB, CONFIG_FILE, \
+        timesheet_row_factory
 from timebook import dbutil, cmdutil
 from timebook.autopost import ParthenonTimeTracker
 
@@ -147,7 +148,7 @@ def post(db, args, extra = None):
     parser.add_option("--config", type="string",
             help="Configuration file to use for automatically answering prompts.",
             dest = "config",
-            default = CONFIG
+            default = CONFIG_FILE
             )
     (options, args, ) = parser.parse_args()
 
@@ -707,6 +708,12 @@ def modify(db, args):
             id
         )
     db.execute(sql, args)
+
+@command('get timesheet statistics')
+def stats(db, args):
+    db.row_factory = timesheet_row_factory
+    db.query("""
+    """)
 
 @command('display timesheet, by default the current one',
          aliases=('export', 'format', 'show'))

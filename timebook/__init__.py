@@ -257,8 +257,7 @@ class TimesheetRow(object):
 
     @property
     def ticket_url(self):
-        if self.is_ticket:
-            return self.TICKET_URL % self.TICKET_MATCHER.match(self.description).groups()[0]
+        return self.TICKET_URL % self.ticket_number
 
     @property
     def end_time_or_now(self):

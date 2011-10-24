@@ -59,7 +59,7 @@ class ParthenonTimeTracker(object):
                 VALUES (?, ?, ?)""", (
                         entry.id,
                         entry.ticket_number,
-                        1 if entry.is_billable else 0
+                        '1' if entry.is_billable else '0'
                     ))
 
         data_encoded = urllib.urlencode(data)

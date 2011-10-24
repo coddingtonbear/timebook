@@ -228,13 +228,14 @@ class TimesheetRow(object):
 
     @property
     def is_billable(self):
-        ticket_match = re.match(r"^(\d{4,6})$", self.description)
-        ticket_search = re.search(r"(\d{4,6})", self.description)
-        force_billable_search = re.search(r"\(Billable\)", self.description, re.IGNORECASE)
-        if ticket_match:
-            return True
-        if force_billable_search:
-            return True
+        if self.description:
+            ticket_match = re.match(r"^(\d{4,6})$", self.description)
+            ticket_search = re.search(r"(\d{4,6})", self.description)
+            force_billable_search = re.search(r"\(Billable\)", self.description, re.IGNORECASE)
+            if ticket_match:
+                return True
+            if force_billable_search:
+                return True
         return False
 
     @property

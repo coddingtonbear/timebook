@@ -513,6 +513,13 @@ the period that the out command ends.')
         parser.error('"t out" takes no arguments.')
     clock_out(db, opts.at, opts.verbose)
 
+    try:
+        value = db.config.get('automation', 'post_on_clockout')
+        if value:
+            post(db, [])
+    except Exception:
+        pass
+
 def clock_out(db, at=None, verbose=False, timestamp=None):
     if not timestamp:
         timestamp = cmdutil.parse_date_time_or_now(at)

@@ -7,13 +7,14 @@ import urllib2
 from timebook import TimesheetRow, ChiliprojectLookupHelper
 
 class ParthenonTimeTracker(object):
-    def __init__(self, login_url, timesheet_url, timesheet_db, config, date, db):
+    def __init__(self, login_url, timesheet_url, timesheet_db, config, date, db, fake = False):
         self.timesheet_url = timesheet_url
         self.timesheet_db = timesheet_db
         self.login_url = login_url
         self.config = self.load_configuration(config)
         self.date = date
         self.db = db
+        self.fake = fake
 
     def load_configuration(self, configfile):
         co = ConfigParser.SafeConfigParser()
@@ -40,6 +41,7 @@ class ParthenonTimeTracker(object):
             print entry
         opener = self.login(self.login_url, self.username, self.password)
         result = self.post_entries(opener, self.timesheet_url, self.date, entries)
+        return result
 
     def post_entries(self, opener, url, date, entries):
         data = [
@@ -63,7 +65,10 @@ class ParthenonTimeTracker(object):
                     ))
 
         data_encoded = urllib.urlencode(data)
-        r = opener.open("%s?date=%s" % (url, date.strftime("%Y-%m-%d")), data_encoded)
+        if not self.fake:
+            r = opener.open("%s?date=%s" % (url, date.strftime("%Y-%m-%d")), data_encoded)
+            return r
+        return False
 
     def get_entries(self, day):
         self.db.execute("""

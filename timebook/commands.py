@@ -134,6 +134,11 @@ def post(db, args, extra = None):
             dest = "date",
             default = datetime.now().date()
         )
+    parser.add_option("--fake", action="store_true",
+            help="Generate statistics, but do not post the entries to the system.",
+            dest="fake",
+            default = False
+        )
     (options, args, ) = parser.parse_args()
 
     with ParthenonTimeTracker(
@@ -142,7 +147,8 @@ def post(db, args, extra = None):
             TIMESHEET_DB,
             CONFIG_FILE,
             options.date,
-            db = db
+            db = db,
+            fake = options.fake
             ) as app:
         try:
             app.main()

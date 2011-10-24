@@ -28,6 +28,7 @@ import json
 import logging
 import os.path
 import re
+import sqlite3
 import sys
 import time
 import urllib2
@@ -93,14 +94,16 @@ LOGS = os.path.join(
             )
 
 class ChiliprojectLookupHelper(object):
-    def __init__(self, username = None, password = None):
+    def __init__(self, username = None, password = None, db = None):
         from timebook.db import Database
         self.config = ConfigParser()
         self.loaded = False
-        self.db = Database(
-                TIMESHEET_DB,
-                CONFIG_FILE
-            )
+        self.db = db
+        if not self.db:
+            self.db = Database(
+                    TIMESHEET_DB,
+                    CONFIG_FILE
+                )
         if not username or not password:
             self.config.read([CONFIG_OLD, CONFIG_FILE ])
             try:
@@ -115,18 +118,24 @@ class ChiliprojectLookupHelper(object):
             self.password = password
 
     def store_ticket_info_in_db(self, ticket_number, project, details):
-        self.db.execute("""
-            INSERT INTO ticket_details (number, project, details)
-            VALUES (?, ?, ?)
-            """, (ticket_number, project, details, ))
+        logger.debug("Storing ticket information for %s" % ticket_number)
+        try:
+            self.db.execute("""
+                INSERT INTO ticket_details (number, project, details)
+                VALUES (?, ?, ?)
+                """, (ticket_number, project, details, ))
+        except sqlite3.OperationalError as e:
+            logger.exception(e)
 
     def get_ticket_info_from_db(self, ticket_number):
         try:
+            logger.debug("Checking in DB for %s" % ticket_number)
             return self.db.execute("""
                 SELECT project, details FROM ticket_details
                 WHERE number = ?
                 """, (ticket_number, )).fetchall()[0]
         except IndexError as e:
+            logger.debug("No information in DB for %s" % ticket_number)
             return None
 
     def get_ticket_details(self, ticket_number):
@@ -135,6 +144,7 @@ class ChiliprojectLookupHelper(object):
         if data:
             return data
         if not data:
+            logger.debug("Gathering data from Chiliproject API")
             try:
                 request = urllib2.Request(CHILIPROJECT_ISSUE % ticket_number)
                 request.add_header(
@@ -158,7 +168,7 @@ class ChiliprojectLookupHelper(object):
                             data["issue"]["subject"],
                         )
             except Exception as e:
-                print e
+                logger.exception(e)
 
     def get_description_for_ticket(self, ticket_number):
         data = self.get_ticket_details(ticket_number)

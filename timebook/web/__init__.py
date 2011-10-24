@@ -1,13 +1,12 @@
 import logging
-import os.path
-import sqlite3
 import subprocess
 from functools import wraps
 
 from flask import Flask, render_template
 
-from timebook import get_user_path, get_best_user_guess, \
-        timesheet_row_factory, LOGS, logger
+from timebook import get_best_user_guess, CONFIG_FILE, \
+        LOGS, logger, TIMESHEET_DB, TimesheetRow, ChiliprojectLookupHelper
+from timebook.db import Database
 
 app = Flask(__name__)
 
@@ -17,31 +16,29 @@ def get_human_username(guess):
     for the current user.  If one is, it will return that, otherwise, it will
     return the current username.
     """
-    process = subprocess.Popen(["getent", "passwd", guess], stdout = subprocess.PIPE)
-    process_data = process.communicate()
-    user_info_string = process_data[0]
-    if user_info_string:
-        user_info = user_info_string.split(":")
-        user_details = user_info[4].split(",")
-        if(user_details[0]):
-            return user_details[0]
-    return guess
-
+    try:
+        process = subprocess.Popen(["getent", "passwd", guess], stdout = subprocess.PIPE)
+        process_data = process.communicate()
+        user_info_string = process_data[0]
+        if user_info_string:
+            user_info = user_info_string.split(":")
+            user_details = user_info[4].split(",")
+            if(user_details[0]):
+                return user_details[0]
+        return guess
+    except OSError:
+        return None
 
 def gather_information(view_func, *args, **kwargs):
     """Returns a valid database session for performing queries."""
     @wraps(view_func)
     def _wrapped_view_func(*args, **kwargs):
         user = get_best_user_guess()
-        path_base = get_user_path(user)
         human_username = get_human_username(user)
-        connection = sqlite3.Connection(
-                os.path.join(
-                    path_base, ".config/timebook/sheets.db"
-                    )
+        cursor = Database(
+                    TIMESHEET_DB,
+                    CONFIG_FILE
                 )
-        connection.row_factory = timesheet_row_factory
-        cursor = connection.cursor()
         return view_func(cursor, human_username, *args, **kwargs)
     return _wrapped_view_func
 
@@ -53,7 +50,7 @@ def balance(cursor, human_username):
 @app.route("/")
 @gather_information
 def index(cursor, human_username):
-    current = cursor.execute("""
+    current_row = cursor.execute("""
         SELECT 
             id,
             start_time,
@@ -63,7 +60,8 @@ def index(cursor, human_username):
         FROM entry 
         WHERE start_time = (select max(start_time) from entry);
         """).fetchone()
-    todays_tasks = cursor.execute("""
+
+    todays_tasks_rows = cursor.execute("""
         SELECT
             id, 
             start_time,
@@ -75,9 +73,18 @@ def index(cursor, human_username):
         ORDER BY start_time DESC
         """).fetchall()
 
+    lookup_helper = ChiliprojectLookupHelper(db = cursor)
+    current = TimesheetRow.from_row(current_row)
+    current.set_lookup_handler(lookup_helper)
+
     hours_total = 0
-    for task in todays_tasks:
+    todays_tasks = []
+    for task_row in todays_tasks_rows:
+        task = TimesheetRow.from_row(task_row)
+        task.set_lookup_handler(lookup_helper)
+
         hours_total = hours_total + task.total_hours
+        todays_tasks.append(task)
 
     return render_template("snapshot.html", 
             current = current,

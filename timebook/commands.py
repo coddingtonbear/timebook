@@ -694,23 +694,154 @@ def modify(db, args):
         )
     db.execute(sql, args)
 
-@command('get timesheet statistics', locking = False)
-def stats(db, args):
+@command('get ticket details')
+def details(db, args):
+    ticket_number = args[0]
+    db.execute("""
+        SELECT project, details FROM ticket_details WHERE number = ?
+        """, (ticket_number, ))
+    details = db.fetchall()[0]
+
+    print "Project: %s" % details[0]
+    print "Title: %s" % details[1]
+
     db.execute("""
         SELECT
-            id,
-            start_time,
-            end_time, 
-            description, 
-            ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2) AS hours
-        FROM entry
-        WHERE start_time > ?
-    """, (time.mktime(datetime.strptime('2011-10-20', "%Y-%m-%d").timetuple()), ))
-    entries = db.fetchall()
-    handler = ChiliprojectLookupHelper()
-    for row in entries:
-        entry = TimesheetRow.from_row(row)
-        entry.set_lookup_handler(handler)
+            SUM(
+                ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2)
+            ) AS hours
+        FROM ticket_details
+        INNER JOIN entry_details ON
+            entry_details.ticket_number = ticket_details.number
+        INNER JOIN entry ON
+            entry_details.entry_id = entry.id
+        WHERE ticket_number = ?
+        """, (ticket_number, ))
+    total_hours = db.fetchall()[0][0]
+
+    db.execute("""
+        SELECT
+            SUM(
+                ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2)
+            ) AS hours
+        FROM ticket_details
+        INNER JOIN entry_details ON
+            entry_details.ticket_number = ticket_details.number
+        INNER JOIN entry ON
+            entry_details.entry_id = entry.id
+        WHERE billable = 1 AND ticket_number = ?
+        """, (ticket_number, ))
+    total_billable = db.fetchall()[0][0]
+
+    print "Total Hours: %s (%s%% billable)" % (
+                total_hours,
+                round(total_billable / total_hours * 100, 2)
+            )
+
+@command('get timesheet statistics', locking = False)
+def stats(db, args):
+    parser = optparse.OptionParser(usage='''usage: %prog stats''')
+    parser.add_option('-s', '--start', dest='start', type='string',
+                      metavar='DATE', 
+                      default = (datetime.now() - timedelta(days = 7)).strftime('%Y-%m-%d'),
+                      help='Show only entries \
+starting after 00:00 on this date. The date should be of the format \
+YYYY-MM-DD.')
+    parser.add_option('-e', '--end', dest='end', type='string',
+                      metavar='DATE', 
+                      default = datetime.now().strftime('%Y-%m-%d'),
+                      help='Show only entries \
+ending before 00:00 on this date. The date should be of the format \
+YYYY-MM-DD.')
+    opts, args = parser.parse_args(args=args)
+
+    start_date = datetime.strptime(opts.start, "%Y-%m-%d")
+    end_date = datetime.strptime(opts.end, "%Y-%m-%d")
+
+    print "Statistics for %s through %s" % (
+                opts.start, opts.end
+            )
+
+    db.execute("""
+        SELECT 
+            billable, 
+            SUM(
+                ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2)
+            ) as hours
+        FROM entry_details
+        INNER JOIN entry ON entry_details.entry_id = entry.id
+        WHERE start_time > ? and end_time < ?
+        GROUP BY billable
+        ORDER BY billable
+        """, (time.mktime(start_date.timetuple()), time.mktime(end_date.timetuple())))
+    results = db.fetchall()
+
+    billable_hours = 0
+    total_hours = 0
+    for result in results:
+        if result[0] == 1:
+            billable_hours = billable_hours + result[1]
+        total_hours = total_hours + result[1]
+
+    print "Total Hours: %s (%s%% billable)" % (
+                round(total_hours, 2),
+                round(billable_hours / total_hours * 100, 2)
+            )
+
+    db.execute("""
+        SELECT
+            project,
+            SUM(
+                ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2)
+            ) as hours
+        FROM entry_details
+        INNER JOIN entry ON entry_details.entry_id = entry.id
+        LEFT JOIN ticket_details ON
+            ticket_details.number = entry_details.ticket_number
+        WHERE start_time > ? and end_time < ?
+        GROUP BY project
+        ORDER BY hours DESC
+        """, 
+            (time.mktime(start_date.timetuple()), time.mktime(end_date.timetuple()))
+            )
+    rows = db.fetchall()
+
+    print "\nProject time allocations"
+    for row in rows:
+        print "%s%%\t%s\t%s" % (
+                    round((row[1] / total_hours) * 100, 2),
+                    row[1],
+                    row[0]
+                )
+
+    db.execute("""
+        SELECT
+            details,
+            number,
+            SUM(
+                ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2)
+            ) as hours
+        FROM entry_details
+        INNER JOIN entry ON entry_details.entry_id = entry.id
+        INNER JOIN ticket_details ON
+            ticket_details.number = entry_details.ticket_number
+        WHERE start_time > ? and end_time < ?
+        GROUP BY details, number
+        ORDER BY hours DESC
+        LIMIT 10
+        """, 
+            (time.mktime(start_date.timetuple()), time.mktime(end_date.timetuple()))
+            )
+    rows = db.fetchall()
+
+    print "\nBiggest Tickets"
+    for row in rows:
+        print "%s%%\t%s\t%s\t%s" % (
+                    round((row[2] / total_hours) * 100, 2),
+                    row[2],
+                    row[1],
+                    row[0]
+                )
 
 @command('display timesheet, by default the current one',
          aliases=('export', 'format', 'show'))

@@ -63,7 +63,7 @@ class ParthenonTimeTracker(object):
                     ))
 
         data_encoded = urllib.urlencode(data)
-        #r = opener.open("%s?date=%s" % (url, date.strftime("%Y-%m-%d")), data_encoded)
+        r = opener.open("%s?date=%s" % (url, date.strftime("%Y-%m-%d")), data_encoded)
 
     def get_entries(self, day):
         self.db.execute("""
@@ -72,7 +72,7 @@ class ParthenonTimeTracker(object):
                 start_time,
                 COALESCE(end_time, STRFTIME('%s', 'now')) as end_time,
                 description,
-                0
+                ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2) AS hours
             FROM
                 entry
             WHERE

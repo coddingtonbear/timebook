@@ -33,15 +33,16 @@ import time
 import urllib2
 
 __author__ = 'Trevor Caira <trevor@caira.com>, Adam Coddington <me@adamcoddington.net>'
-__version__ = (1, 5, 0)
+__version__ = (1, 6, 0)
 
 def get_version():
     return '.'.join(str(bit) for bit in __version__)
 
-HOME_DIR = os.path.realpath(
-                os.path.join(
-                    os.path.expanduser("~"), "../"
-                    ))
+if sys.platform == 'darwin':
+    HOME_DIR = "/Users"
+elif sys.platform == 'linux2':
+    HOME_DIR = "/home"
+
 def get_user_path(guess):
     """
     Using a supplied username, get the homedir path.

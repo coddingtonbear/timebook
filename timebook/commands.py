@@ -35,7 +35,7 @@ from dateutil import relativedelta
 from dateutil import rrule
 
 from timebook import LOGIN_URL, TIMESHEET_URL, TIMESHEET_DB, CONFIG_FILE, \
-        timesheet_row_factory
+        ChiliprojectLookupHelper, TimesheetRow
 from timebook import dbutil, cmdutil
 from timebook.autopost import ParthenonTimeTracker
 
@@ -62,11 +62,12 @@ def post_hook(db, func_name):
                 return mod.post
     return lambda db, res: res
 
-def command(desc, name=None, aliases=()):
+def command(desc, name=None, aliases=(), locking = True):
     def decorator(func):
         func_name = name or func.func_code.co_name
         commands[func_name] = func
         func.description = desc
+        func.locking = locking
         for alias in aliases:
             cmd_aliases[alias] = func_name
         @wraps(func)
@@ -82,13 +83,16 @@ def run_command(db, cmd, args):
     if func is None:
         func = cmdutil.complete(commands, cmd, 'command')
     try:
-        db.execute(u'begin')
+        if commands[func].locking:
+            db.execute(u'begin')
         commands[func](db, args)
     except:
-        db.execute(u'rollback')
+        if commands[func].locking:
+            db.execute(u'rollback')
         raise
     else:
-        db.execute(u'commit')
+        if commands[func].locking:
+            db.execute(u'commit')
 
 def get_date_from_cli_string(option,  option_str, value, parser):
     if(value == 'today'):
@@ -121,7 +125,7 @@ def change(db, args, extra = None):
     out(db, [])
     in_(db, args)
 
-@command('post timesheet hours to timesheet online', name='post')
+@command('post timesheet hours to timesheet online', name='post', locking=False)
 def post(db, args, extra = None):
     parser = optparse.OptionParser()
     parser.add_option("--date", type="string", action="callback",
@@ -130,39 +134,20 @@ def post(db, args, extra = None):
             dest = "date",
             default = datetime.now().date()
         )
-    parser.add_option("--login-url", type="string",
-            help="URL to use for getting a log-in cookie (In our case, this should be the URL for Mantis).",
-            dest = "login_url",
-            default = LOGIN_URL
-            )
-    parser.add_option("--timesheet-url", type="string",
-            help="URL to post timesheet entries to.",
-            dest = "timesheet_url",
-            default = TIMESHEET_URL
-            )
-    parser.add_option("--db", type="string",
-            help="Database file to gather timesheet entries from.",
-            dest = "timesheet_db",
-            default = TIMESHEET_DB
-            )
-    parser.add_option("--config", type="string",
-            help="Configuration file to use for automatically answering prompts.",
-            dest = "config",
-            default = CONFIG_FILE
-            )
     (options, args, ) = parser.parse_args()
 
     with ParthenonTimeTracker(
-            options.login_url,
-            options.timesheet_url,
-            options.timesheet_db,
-            options.config,
-            options.date
+            LOGIN_URL,
+            TIMESHEET_URL,
+            TIMESHEET_DB,
+            CONFIG_FILE,
+            options.date,
+            db = db
             ) as app:
         try:
             app.main()
         except Exception, e:
-            print e
+            raise e
 
 @command('provides hours information for the current pay period', name='hours',
         aliases=('payperiod', 'pay', 'period', 'offset', ))
@@ -709,11 +694,23 @@ def modify(db, args):
         )
     db.execute(sql, args)
 
-@command('get timesheet statistics')
+@command('get timesheet statistics', locking = False)
 def stats(db, args):
-    db.row_factory = timesheet_row_factory
-    db.query("""
-    """)
+    db.execute("""
+        SELECT
+            id,
+            start_time,
+            end_time, 
+            description, 
+            ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2) AS hours
+        FROM entry
+        WHERE start_time > ?
+    """, (time.mktime(datetime.strptime('2011-10-20', "%Y-%m-%d").timetuple()), ))
+    entries = db.fetchall()
+    handler = ChiliprojectLookupHelper()
+    for row in entries:
+        entry = TimesheetRow.from_row(row)
+        entry.set_lookup_handler(handler)
 
 @command('display timesheet, by default the current one',
          aliases=('export', 'format', 'show'))

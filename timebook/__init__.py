@@ -28,6 +28,7 @@ import json
 import logging
 import os.path
 import re
+import sys
 import time
 import urllib2
 
@@ -37,7 +38,10 @@ __version__ = (1, 5, 0)
 def get_version():
     return '.'.join(str(bit) for bit in __version__)
 
-HOME_DIR = "/home/"
+HOME_DIR = os.path.realpath(
+                os.path.join(
+                    os.path.expanduser("~"), "../"
+                    ))
 def get_user_path(guess):
     """
     Using a supplied username, get the homedir path.
@@ -66,6 +70,10 @@ def get_best_user_guess():
 logger = logging.getLogger('timebook')
 logger.setLevel(logging.DEBUG)
 
+handler = logging.StreamHandler(sys.stderr)
+handler.setLevel(logging.DEBUG)
+logger.addHandler(handler)
+
 LOGIN_URL = "http://www.parthenonsoftware.com/timesheet/index.php"
 TIMESHEET_URL = "http://www.parthenonsoftware.com/timesheet/timesheet.php"
 CONFIG_DIR = os.path.expanduser(os.path.join(
@@ -84,57 +92,81 @@ LOGS = os.path.join(
             )
 
 class ChiliprojectLookupHelper(object):
-    PROJECT_CACHE = {}
-
-    def __init__(self):
+    def __init__(self, username = None, password = None):
         from timebook.db import Database
         self.config = ConfigParser()
         self.loaded = False
-        self.config.read([CONFIG_OLD, CONFIG_FILE ])
-        try:
-            self.db = Database(
-                    TIMESHEET_DB,
-                    CONFIG_FILE
-                )
-            self.username = self.config.get("auth", "username")
-            self.password = self.config.get("auth", "password")
+        self.db = Database(
+                TIMESHEET_DB,
+                CONFIG_FILE
+            )
+        if not username or not password:
+            self.config.read([CONFIG_OLD, CONFIG_FILE ])
+            try:
+                self.username = self.config.get("auth", "username")
+                self.password = self.config.get("auth", "password")
+                self.loaded = True
+            except Exception as e:
+                logger.exception(e)
+        else:
             self.loaded = True
-        except Exception as e:
-            logger.exception(e)
+            self.username = username
+            self.password = password
+
+    def store_ticket_info_in_db(self, ticket_number, project, details):
+        self.db.execute("""
+            INSERT INTO ticket_details (number, project, details)
+            VALUES (?, ?, ?)
+            """, (ticket_number, project, details, ))
 
     def get_ticket_info_from_db(self, ticket_number):
-        return self.db.execute("""
-            SELECT project, details FROM ticket_info
-            """)[0]
-
-    def get_description_for_ticket(self, ticket_number):
-        if not self.loaded:
+        try:
+            return self.db.execute("""
+                SELECT project, details FROM ticket_details
+                WHERE number = ?
+                """, (ticket_number, )).fetchall()[0]
+        except IndexError as e:
             return None
-        else:
+
+    def get_ticket_details(self, ticket_number):
+        data = self.get_ticket_info_from_db(ticket_number)
+
+        if data:
+            return data
+        if not data:
             try:
-                logger.info(self.get_ticket_info_from_db(ticket_number))
-                if ticket_number in self.PROJECT_CACHE.keys():
-                    data = self.PROJECT_CACHE[ticket_number]
-                else:
-                    request = urllib2.Request(CHILIPROJECT_ISSUE % ticket_number)
-                    request.add_header(
-                                "Authorization",
-                                base64.encodestring(
-                                        "%s:%s" % (
-                                                self.username,
-                                                self.password
-                                            )
-                                    ).replace("\n", "")
-                            )
-                    result = urllib2.urlopen(request).read()
-                    data = json.loads(result)
-                    self.PROJECT_CACHE[ticket_number] = data
-                return "%s: %s" % (
+                request = urllib2.Request(CHILIPROJECT_ISSUE % ticket_number)
+                request.add_header(
+                            "Authorization",
+                            base64.encodestring(
+                                    "%s:%s" % (
+                                            self.username,
+                                            self.password
+                                        )
+                                ).replace("\n", "")
+                        )
+                result = urllib2.urlopen(request).read()
+                data = json.loads(result)
+                self.store_ticket_info_in_db(
+                            ticket_number,
+                            data["issue"]["project"]["name"],
+                            data["issue"]["subject"],
+                        )
+                return (
                             data["issue"]["project"]["name"],
                             data["issue"]["subject"],
                         )
             except Exception as e:
-                logger.exception(e)
+                print e
+
+    def get_description_for_ticket(self, ticket_number):
+        data = self.get_ticket_details(ticket_number)
+        if data:
+            return "%s: %s" % (
+                        data[0],
+                        data[1]
+                    )
+        return None
 
 class TimesheetRow(object):
     TICKET_MATCHER = re.compile(r"^(\d{4,6})(?:[^0-9]|$)+")
@@ -188,9 +220,31 @@ class TimesheetRow(object):
             return self.TICKET_MATCHER.match(self.description).groups()[0]
 
     @property
+    def timesheet_description(self):
+        if self.ticket_number == self.description:
+            return ''
+        else:
+            return self.description
+
+    @property
+    def is_billable(self):
+        ticket_match = re.match(r"^(\d{4,6})$", self.description)
+        ticket_search = re.search(r"(\d{4,6})", self.description)
+        force_billable_search = re.search(r"\(Billable\)", self.description, re.IGNORECASE)
+        if ticket_match:
+            return True
+        if force_billable_search:
+            return True
+        return False
+
+    @property
     def ticket_url(self):
         if self.is_ticket:
             return self.TICKET_URL % self.TICKET_MATCHER.match(self.description).groups()[0]
+
+    @property
+    def end_time_or_now(self):
+        return datetime.datetime.fromtimestamp(float(self.end_time_epoch_or_now))
 
     @property
     def end_time_epoch_or_now(self):
@@ -202,6 +256,15 @@ class TimesheetRow(object):
     @property
     def total_hours(self):
         return float(self.end_time_epoch_or_now - self.start_time_epoch) / 3600
+
+    def __str__(self):
+        return """%s - %s; %s (%s, %s)""" % (
+                    self.start_time,
+                    self.end_time_or_now,
+                    self.description,
+                    self.ticket_number,
+                    self.chili_detail
+                )
 
 CHILIPROJECT_LOOKUP = None
 def timesheet_row_factory(cursor, row):

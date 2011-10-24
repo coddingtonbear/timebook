@@ -27,8 +27,8 @@ class Database(object):
     def __init__(self, path, config):
         self.config = config
         self.path = path
-        connection = sqlite3.connect(path, isolation_level=None)
-        cursor = connection.cursor()
+        self.connection = sqlite3.connect(path, isolation_level=None)
+        cursor = self.connection.cursor()
         for attr in ('execute', 'executescript', 'fetchone', 'fetchall'):
             setattr(self, attr, getattr(cursor, attr))
         self._initialize_db()
@@ -48,6 +48,11 @@ class Database(object):
             description varchar(64),
             extra blob
         );
+        create table if not exists entry_details (
+            entry_id integer primary key not null,
+            ticket_number integer default null,
+            billable integer default 0
+        );
         CREATE TABLE if not exists holidays (
             year integer default null, 
             month integer, 
@@ -63,8 +68,7 @@ class Database(object):
             month integer, 
             day integer
         );
-        CREATE TABLE if not exists ticket_info (
-            id integer primary key not null,
+        CREATE TABLE if not exists ticket_details (
             number integer,
             project string,
             details string

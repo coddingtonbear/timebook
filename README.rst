@@ -40,17 +40,17 @@ Usage
 
 The basic usage is as follows::
 
-  $ t switch writing
-  $ t in document timebook
+  $ t in 'document timebook'
+  $ t change 'doing something else'
   $ t out
 
-The first command, ``t switch writing``, switches to the timesheet
-"writing" (or creates it if it does not exist). ``t in document
-timebook`` creates a new period in the current timesheet, and annotates
-it with the description "document timebook". Note that this command
-would be in error if the ``writing`` timesheet was already active.
-Finally, ``t out`` records the current time as the end time for the
-most recent period in the ``writing`` timesheet.
+The first command, ``t in 'document timebook'`` creates a new period in
+the current timesheet, and annotates it with the description "document
+timebook". The second, ``t change 'doing something else'`` ends the first period
+you created a moment ago, and starts a new period, annotating it with the 
+description 'doing something else'.  Finally, ``t out`` records the current
+time as the end time for the most recent period in the ``writing``
+timesheet.
 
 To display the current timesheet, invoke the ``t display`` command::
 
@@ -68,6 +68,64 @@ each day, the total time tracked in the timesheet for that day is
 listed. Note that this is computed by summing the durations of the
 periods beginning in the day. In the last row, the total time tracked in
 the timesheet is shown.
+
+Advanced Parthenon-Related Usage
+--------------------------------
+
+Annotating work-related projects can be somewhat more complicated due to having
+specific projects associated with billable or non-billable tickets, but
+timebook will help make this reasonably easy for you by allowing you to specify,
+instead of a description, a ticket number that will be used when posting your
+timesheet (you can change 'in' to 'change' should you be switching tasks instead
+of starting a new one)::
+
+  $ t in 9234
+
+The above command will enter '9234' into your timesheet, and mark the task
+as billable.  But, what if you want your ticket to be marked as non-billable?::
+
+  $ t in '9234 (Non Billable)'
+
+If your task description includes a ticket number but has other text aside from
+the number itself, the task will be marked as 'Non-billable'.  Usually, if I am
+entering a non-billable task, I'll enter a description like '9234-NB'.  The '-NB'
+will cause the ticket to be marked as non-billable.
+
+Also, should you want an entry having annotation that is not a ticket number (or
+is a ticket number with extra text) that you would like posted as billable time,
+you can add the text '(Billable)' to your task description.
+
+At the end of the day, you can post your hours to our timesheet automatically
+by running::
+
+  $ t post
+
+If you do not have your credentials saved in the configuration, you will
+be asked for your username and password, statistics will be gathered (if
+possible) for the entries you are posting, and your entries will be posted
+to your timesheet online.
+
+Configuration
+~~~~~~~~~~~~~
+
+A configuration file lives in ``~/.config/timebook/timebook.ini`` that you can 
+use to configure various options in the timebook application including setting
+your ChiliProject username and password.
+
+If you'd like to not be asked for your username and password when you're posting
+a timesheet and/or allow the web interface to gather information from ChiliProject
+directly, you can enter your username and password inside the above file in
+a format like::
+
+  [auth]
+  username = MY USERNAME
+  password = MY PASSWORD
+
+Additionally, if you would like your hours to be automatically posted when
+you run ``t out``, you can enter a configuration key like the following::
+
+  [automation]
+  post_on_clockout = True
 
 Commands
 ~~~~~~~~
@@ -95,6 +153,15 @@ Commands
   usage: ``t backend``
 
   aliases: *shell*
+
+**details**
+  Displays details regarding tickets assigned to a specified ticket number.
+
+  Information displayed includes the project name and ticket title, as well
+  as the number of hours attributed to the specified ticket and the billable
+  percentage.
+
+  usage: ``t details TICKET_NUMBER``
 
 **display**
   Display a given timesheet. If no timesheet is specified, show the
@@ -183,15 +250,9 @@ Commands
 **post**
   Posts your current timesheet to our internal hours tracking system.
 
-  Should you have a configuration file in a file at ``~/.timetracker`` with
-  information in the following format::
-
-    [auth]
-    username = YOUR_USERNAME
-    password = YOUR_PASSWORD
-
-  The application will not require your input to post hours (otherwise, you
-  will be prompted for your credentials).
+  The application will not require your input to post hours if you have stored
+  your credentials in your configuration, but if you have not, your username
+  and password will be requested.
 
   usage ``t post [--date=YYYY-MM-DD]``
 
@@ -201,6 +262,15 @@ Commands
   usage: ``t running``
 
   aliases: *active*
+
+**stats**
+  Print out billable hours and project time allocation details for the past
+  seven days.
+
+  Optionally you can specify the range of time for which you'd like statistics
+  calculated.
+
+  usage ``t stats [--start=YYYY-MM-DD] [--end=YYYY-MM-DD]``
 
 **switch**
   Switch to a new timesheet. this causes all future operation (except

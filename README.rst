@@ -69,8 +69,8 @@ listed. Note that this is computed by summing the durations of the
 periods beginning in the day. In the last row, the total time tracked in
 the timesheet is shown.
 
-Advanced Parthenon-Related Usage
---------------------------------
+Parthenon-Related Usage
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Annotating work-related projects can be somewhat more complicated due to having
 specific projects associated with billable or non-billable tickets, but
@@ -104,6 +104,28 @@ If you do not have your credentials saved in the configuration, you will
 be asked for your username and password, statistics will be gathered (if
 possible) for the entries you are posting, and your entries will be posted
 to your timesheet online.
+
+Web Interface
+~~~~~~~~~~~~~
+
+If you're as pro-transparency as I am, you could enable the web display for
+your timesheet by connecting Apache (or your webserver of choice) with
+the wsgi script in the root of this project.
+
+The provided wsgi and apache templates ar set up with the assumption that 
+you've created a virtual environment named ``timebook`` and have stored 
+that virtual environment in the standard place.
+
+You will need to install the additional requirement ``Flask`` (which itself
+has several dependencies), but a simple::
+
+  $ pip install Flask
+
+should suffice.
+
+The application will find your timesheet (by searching home folders for the
+most recently updated timesheet database), and gather your name from the system
+if possible.
 
 Configuration
 ~~~~~~~~~~~~~

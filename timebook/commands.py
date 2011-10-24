@@ -681,9 +681,9 @@ def modify(db, args):
                     "%H:%M",
                 )
         dt_newend = datetime(
-                    end.year,
-                    end.month,
-                    end.day,
+                    end.year if end else start.year,
+                    end.month if end else start.month,
+                    end.day if end else start.day,
                     dt_newend.hour,
                     dt_newend.minute,
                     0,

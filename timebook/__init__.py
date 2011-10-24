@@ -73,7 +73,7 @@ logger = logging.getLogger('timebook')
 logger.setLevel(logging.DEBUG)
 
 handler = logging.StreamHandler(sys.stderr)
-handler.setLevel(logging.DEBUG)
+handler.setLevel(logging.INFO)
 logger.addHandler(handler)
 
 LOGIN_URL = "http://www.parthenonsoftware.com/timesheet/index.php"
@@ -167,6 +167,8 @@ class ChiliprojectLookupHelper(object):
                             data["issue"]["project"]["name"],
                             data["issue"]["subject"],
                         )
+            except urllib2.HTTPError as e:
+                logger.debug("Encountered an HTTP Exception while gathering data. %s" % e)
             except Exception as e:
                 logger.exception(e)
 
@@ -180,7 +182,7 @@ class ChiliprojectLookupHelper(object):
         return None
 
 class TimesheetRow(object):
-    TICKET_MATCHER = re.compile(r"^(\d{4,6})(?:[^0-9]|$)+")
+    TICKET_MATCHER = re.compile(r"^(?:(\d{4,6})(?:[^0-9]|$)+|.*#(\d{4,6})(?:[^0-9]|$)+)")
     TICKET_URL = "http://chili.parthenonsoftware.com/issues/%s/"
 
     def __init__(self):
@@ -222,13 +224,18 @@ class TimesheetRow(object):
 
     @property
     def is_ticket(self):
-        if self.description and self.TICKET_MATCHER.match(self.description):
+        if self.description and self.ticket_number:
             return True
 
     @property
     def ticket_number(self):
-        if self.is_ticket:
-            return self.TICKET_MATCHER.match(self.description).groups()[0]
+        matches = self.TICKET_MATCHER.match(self.description)
+        if not matches:
+            return None
+        else:
+            for match in matches.groups():
+                if match:
+                    return match
 
     @property
     def timesheet_description(self):
@@ -241,7 +248,6 @@ class TimesheetRow(object):
     def is_billable(self):
         if self.description:
             ticket_match = re.match(r"^(\d{4,6})$", self.description)
-            ticket_search = re.search(r"(\d{4,6})", self.description)
             force_billable_search = re.search(r"\(Billable\)", self.description, re.IGNORECASE)
             if ticket_match:
                 return True
@@ -270,12 +276,13 @@ class TimesheetRow(object):
         return float(self.end_time_epoch_or_now - self.start_time_epoch) / 3600
 
     def __str__(self):
-        return """%s - %s; %s (%s, %s)""" % (
+        return """%s - %s; %s""" % (
                     self.start_time,
                     self.end_time_or_now,
-                    self.description,
-                    self.ticket_number,
-                    self.chili_detail
+                    self.description if not self.ticket_number else "%s%s" % (
+                            self.ticket_number,
+                            " (" + self.chili_detail + ")" if self.chili_detail else ""
+                        ),
                 )
 
 CHILIPROJECT_LOOKUP = None

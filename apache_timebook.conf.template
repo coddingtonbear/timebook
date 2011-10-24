@@ -1,0 +1,12 @@
+WSGIPythonHome /home/acoddington/Envs/virgin  
+
+<VirtualHost *:80>
+    ServerAdmin webmaster@localhost
+    ServerName adam.parthenon.internal
+    ServerAlias adam.timebook.internal
+    ErrorLog /var/log/apache2/timebook_error.log
+    LogLevel warn
+    CustomLog /var/log/apache2/timebook_access.log combined
+
+    WSGIScriptAlias / "/home/acoddington/Documents/Code/timebook/dispatch.wsgi"
+</VirtualHost>

@@ -4,7 +4,7 @@ import os, sys, site
 ROOT = os.path.dirname(__file__)
 os.chdir(ROOT)
 
-#site.addsitedir("/usr/local/share/python-environments/timebook/lib/python2.6/site-packages")
+site.addsitedir("/usr/local/share/python-environments/timebook/lib/python2.6/site-packages")
 
 # Add the path to your application, too.
 sys.path.insert(0, os.path.join(ROOT, "timebook/"))

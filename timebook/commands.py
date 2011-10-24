@@ -697,46 +697,51 @@ def modify(db, args):
 @command('get ticket details')
 def details(db, args):
     ticket_number = args[0]
-    db.execute("""
-        SELECT project, details FROM ticket_details WHERE number = ?
-        """, (ticket_number, ))
-    details = db.fetchall()[0]
+    try:
+        db.execute("""
+            SELECT project, details FROM ticket_details WHERE number = ?
+            """, (ticket_number, ))
+        details = db.fetchall()[0]
 
-    print "Project: %s" % details[0]
-    print "Title: %s" % details[1]
+        print "Project: %s" % details[0]
+        print "Title: %s" % details[1]
 
-    db.execute("""
-        SELECT
-            SUM(
-                ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2)
-            ) AS hours
-        FROM ticket_details
-        INNER JOIN entry_details ON
-            entry_details.ticket_number = ticket_details.number
-        INNER JOIN entry ON
-            entry_details.entry_id = entry.id
-        WHERE ticket_number = ?
-        """, (ticket_number, ))
-    total_hours = db.fetchall()[0][0]
+        db.execute("""
+            SELECT
+                SUM(
+                    ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2)
+                ) AS hours
+            FROM ticket_details
+            INNER JOIN entry_details ON
+                entry_details.ticket_number = ticket_details.number
+            INNER JOIN entry ON
+                entry_details.entry_id = entry.id
+            WHERE ticket_number = ?
+            """, (ticket_number, ))
+        total_hours = db.fetchall()[0][0]
 
-    db.execute("""
-        SELECT
-            SUM(
-                ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2)
-            ) AS hours
-        FROM ticket_details
-        INNER JOIN entry_details ON
-            entry_details.ticket_number = ticket_details.number
-        INNER JOIN entry ON
-            entry_details.entry_id = entry.id
-        WHERE billable = 1 AND ticket_number = ?
-        """, (ticket_number, ))
-    total_billable = db.fetchall()[0][0]
+        db.execute("""
+            SELECT
+                SUM(
+                    ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2)
+                ) AS hours
+            FROM ticket_details
+            INNER JOIN entry_details ON
+                entry_details.ticket_number = ticket_details.number
+            INNER JOIN entry ON
+                entry_details.entry_id = entry.id
+            WHERE billable = 1 AND ticket_number = ?
+            """, (ticket_number, ))
+        total_billable = db.fetchall()[0][0]
+        if not total_billable:
+            total_billable = 0
 
-    print "Total Hours: %s (%s%% billable)" % (
-                total_hours,
-                round(total_billable / total_hours * 100, 2)
-            )
+        print "Total Hours: %s (%s%% billable)" % (
+                    total_hours,
+                    round(total_billable / total_hours * 100, 2)
+                )
+    except IndexError as e:
+        print "No information available."
 
 @command('get timesheet statistics', locking = False)
 def stats(db, args):

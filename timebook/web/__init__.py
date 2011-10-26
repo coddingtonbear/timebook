@@ -1,3 +1,4 @@
+from ConfigParser import NoSectionError, NoOptionError
 import logging
 import subprocess
 from functools import wraps
@@ -7,6 +8,7 @@ from flask import Flask, render_template
 from timebook import get_best_user_guess, CONFIG_FILE, \
         LOGS, logger, TIMESHEET_DB, TimesheetRow, ChiliprojectLookupHelper
 from timebook.db import Database
+from timebook.config import parse_config
 
 app = Flask(__name__)
 
@@ -39,17 +41,20 @@ def gather_information(view_func, *args, **kwargs):
                     TIMESHEET_DB,
                     CONFIG_FILE
                 )
-        return view_func(cursor, human_username, *args, **kwargs)
+        config = parse_config(CONFIG_FILE)
+        config.add_section('temp')
+        config.set('temp', 'human_name', human_username)
+        return view_func(cursor, config, *args, **kwargs)
     return _wrapped_view_func
 
 @app.route("/balance/")
 @gather_information
-def balance(cursor, human_username):
+def balance(cursor, config):
     return ""
 
 @app.route("/")
 @gather_information
-def index(cursor, human_username):
+def index(cursor, config):
     current_row = cursor.execute("""
         SELECT 
             id,
@@ -86,9 +91,15 @@ def index(cursor, human_username):
         hours_total = hours_total + task.total_hours
         todays_tasks.append(task)
 
-    return render_template("snapshot.html", 
+    template_name = "snapshot.html"
+    try:
+        template_name = config.get('template', 'snapshot')
+    except (NoSectionError, NoOptionError):
+        pass
+
+    return render_template(template_name, 
             current = current,
-            human_username = human_username,
+            human_username = config.get('temp', 'human_name'),
             todays_tasks = todays_tasks,
             hours_total = hours_total
         )

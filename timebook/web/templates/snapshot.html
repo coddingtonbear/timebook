@@ -22,7 +22,7 @@
       <p>
         {% if current.description %}
           But he was last working on 
-          {% if current.ticket_url %}
+          {% if current.ticket_number %}
             ticket
             <a href="{{ current.ticket_url }}">#{{ current.description }}</a>
           {% else %}

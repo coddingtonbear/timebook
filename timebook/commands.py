@@ -788,10 +788,10 @@ YYYY-MM-DD.')
             ) as hours
         FROM entry_details
         INNER JOIN entry ON entry_details.entry_id = entry.id
-        WHERE start_time > ? and end_time < ?
+        WHERE start_time > STRFTIME('%s', ?, 'utc') and (end_time < STRFTIME('%s', ?, 'utc', '1 day') or end_time is null)
         GROUP BY billable
         ORDER BY billable
-        """, (time.mktime(start_date.timetuple()), time.mktime(end_date.timetuple())))
+        """, (start_date, end_date))
     results = db.fetchall()
 
     billable_hours = 0
@@ -816,11 +816,11 @@ YYYY-MM-DD.')
         INNER JOIN entry ON entry_details.entry_id = entry.id
         LEFT JOIN ticket_details ON
             ticket_details.number = entry_details.ticket_number
-        WHERE start_time > ? and end_time < ?
+        WHERE start_time > STRFTIME('%s', ?, 'utc') and (end_time < STRFTIME('%s', ?, 'utc', '1 day') OR end_time is null)
         GROUP BY project
         ORDER BY hours DESC
         """, 
-            (time.mktime(start_date.timetuple()), time.mktime(end_date.timetuple()))
+            (start_date, end_date)
             )
     rows = db.fetchall()
 
@@ -843,12 +843,12 @@ YYYY-MM-DD.')
         INNER JOIN entry ON entry_details.entry_id = entry.id
         INNER JOIN ticket_details ON
             ticket_details.number = entry_details.ticket_number
-        WHERE start_time > ? and end_time < ?
+        WHERE start_time > STRFTIME('%s', ?, 'utc') and (end_time < STRFTIME('%s', ?, 'utc', '1 day') OR end_time is null)
         GROUP BY details, number
         ORDER BY hours DESC
         LIMIT 10
         """, 
-            (time.mktime(start_date.timetuple()), time.mktime(end_date.timetuple()))
+            (start_date, end_date)
             )
     rows = db.fetchall()
 

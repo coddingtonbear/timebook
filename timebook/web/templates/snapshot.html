@@ -7,6 +7,7 @@
         {% if current.is_ticket %}
           is working on ticket
           <a href="{{ current.ticket_url }}" {% if current.chili_detail %}title="{{ current.chili_detail }}"{% endif %}>#{{ current.description }}</a>
+          ({{ current.chili_detail }})
         {% elif current.description %}
           is working on
           <strong>{{ current.description }}</strong>

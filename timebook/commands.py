@@ -35,8 +35,7 @@ from dateutil import relativedelta
 from dateutil import rrule
 
 from timebook import LOGIN_URL, TIMESHEET_URL, TIMESHEET_DB, CONFIG_FILE, \
-        ChiliprojectLookupHelper, TimesheetRow
-from timebook import dbutil, cmdutil
+        logger, dbutil, cmdutil
 from timebook.autopost import ParthenonTimeTracker
 
 commands = {}
@@ -636,6 +635,26 @@ usage, see "%(prog)s --help".' % {'prog': os.path.basename(sys.argv[0])}
         print notes
     else:
         print '%s: %s' % (sheet, active)
+
+@command('insert a new timesheet entry at a specified time')
+def insert(db, args):
+    try:
+        start = datetime.strptime(args[0], "%Y-%m-%d %H:%M")
+        end = datetime.strptime(args[1], "%Y-%m-%d %H:%M")
+        memo = args[2]
+
+        sql = """INSERT INTO entry (sheet, start_time, end_time, description)
+            VALUES (?, ?, ?, ?)"""
+        args = (
+                    dbutil.get_current_sheet(db),
+                    int(time.mktime(start.timetuple())),
+                    int(time.mktime(end.timetuple())),
+                    memo
+                )
+        db.execute(sql, args)
+    except (ValueError, IndexError, ) as e:
+        print "Insert requires three arguments, START END DESCRIPTION. Please use the date format \"YYYY-MM-DD HH:MM\""
+        logger.exception(e)
 
 @command('change details about a specific entry in the timesheet')
 def modify(db, args):

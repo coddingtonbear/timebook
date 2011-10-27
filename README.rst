@@ -160,14 +160,6 @@ Commands
 
   aliases: *write*
 
-**change**
-  Stop the timer for the current timesheet, and re-start the timer for the
-  current timesheet with a new description.  Notes may be specified for this 
-  period. This is exactly equivalent to
-  ``t out; t in NOTES``
-
-  usage: ``t change [NOTES...]``
-
 **backend**
   Run an interactive database session on the timebook database. Requires
   the sqlite3 command.
@@ -175,6 +167,14 @@ Commands
   usage: ``t backend``
 
   aliases: *shell*
+
+**change**
+  Stop the timer for the current timesheet, and re-start the timer for the
+  current timesheet with a new description.  Notes may be specified for this 
+  period. This is exactly equivalent to
+  ``t out; t in NOTES``
+
+  usage: ``t change [NOTES...]``
 
 **details**
   Displays details regarding tickets assigned to a specified ticket number.
@@ -227,6 +227,12 @@ Commands
   usage: ``t in [--switch TIMESHEET] [NOTES...]``
 
   aliases: *start*
+
+**insert**
+  Insert a new entry into the current timesheet.  Times must be in the 
+  YYYY-MM-DD HH:MM format, and all parameters should be quoted.
+
+  usage: ``t insert START END NOTE``
 
 **kill**
   Delete a timesheet. If no timesheet is specified, delete the current

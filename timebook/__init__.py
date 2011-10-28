@@ -67,6 +67,8 @@ def get_best_user_guess():
         if os.path.exists(timebook_db_file):
             if os.stat(timebook_db_file).st_atime > max_atime:
                 final_user = homedir
+    if not final_user:
+        final_user = os.getusername()
     return final_user
 
 logger = logging.getLogger('timebook')

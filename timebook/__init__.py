@@ -24,6 +24,7 @@
 from ConfigParser import ConfigParser
 import base64
 import datetime
+import getpass
 import json
 import logging
 import os.path
@@ -68,7 +69,7 @@ def get_best_user_guess():
             if os.stat(timebook_db_file).st_atime > max_atime:
                 final_user = homedir
     if not final_user:
-        final_user = os.getusername()
+        final_user = getpass.getuser()
     return final_user
 
 logger = logging.getLogger('timebook')

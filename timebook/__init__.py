@@ -232,13 +232,13 @@ class TimesheetRow(object):
 
     @property
     def ticket_number(self):
-        matches = self.TICKET_MATCHER.match(self.description)
-        if not matches:
-            return None
-        else:
-            for match in matches.groups():
-                if match:
-                    return match
+        if self.description:
+            matches = self.TICKET_MATCHER.match(self.description)
+            if matches:
+                for match in matches.groups():
+                    if match:
+                        return match
+        return None
 
     @property
     def timesheet_description(self):

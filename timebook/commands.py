@@ -801,12 +801,12 @@ YYYY-MM-DD.')
 
     db.execute("""
         SELECT 
-            billable, 
+            COALESCE(billable, 0), 
             SUM(
                 ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2)
             ) as hours
-        FROM entry_details
-        INNER JOIN entry ON entry_details.entry_id = entry.id
+        FROM entry
+        LEFT JOIN entry_details ON entry_details.entry_id = entry.id
         WHERE start_time > STRFTIME('%s', ?, 'utc') and (end_time < STRFTIME('%s', ?, 'utc', '1 day') or end_time is null)
         GROUP BY billable
         ORDER BY billable

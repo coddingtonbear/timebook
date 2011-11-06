@@ -20,6 +20,6 @@ setup(
     entry_points={'console_scripts': [
         't = timebook.cmdline:run_from_cmdline']},
     install_requires = [
-            'python-dateutil',
+            'python-dateutil<2.0',
         ]
 )

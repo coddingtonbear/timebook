@@ -1,5 +1,6 @@
 from ConfigParser import NoSectionError, NoOptionError
 import datetime
+import hashlib
 import json
 import logging
 import subprocess
@@ -13,6 +14,10 @@ from timebook.db import Database
 from timebook.config import parse_config
 
 app = Flask(__name__)
+
+@app.template_filter('md5')
+def reverse_filter(s):
+    return hashlib.md5(s).hexdigest()
 
 def get_human_username(guess):
     """
@@ -54,7 +59,7 @@ def gather_information(view_func, *args, **kwargs):
 def billable(cursor, config):
     start = request.args.get('start', (datetime.datetime.now() - datetime.timedelta(days = 30)).strftime("%Y-%m-%d"))
     end = request.args.get('end', datetime.datetime.now().strftime("%Y-%m-%d"))
-    project = request.args.get('project', '')
+    project = request.args.getlist('project')
 
     select_constraint = ''
     if start:
@@ -62,7 +67,11 @@ def billable(cursor, config):
     if end:
         select_constraint = select_constraint + " AND start_time < STRFTIME('%%s', '%s', 'utc', '1 day') " % end
     if project:
-        select_constraint = select_constraint + " AND project = '%s' " % project
+        project_constraints = []
+        for p in project:
+            project_constraints.append(" project = '%s' " % p)
+        project_constraint = " OR ".join(project_constraints)
+        select_constraint = select_constraint + " AND ( %s ) " % project_constraint
 
     logger.info(select_constraint)
 

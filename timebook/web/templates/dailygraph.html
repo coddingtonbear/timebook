@@ -39,9 +39,13 @@
         $("#end_id").datepicker({
           dateFormat: "yy-mm-dd"
         });
-        {% if project %}
-        $("#project_id").val("{{ project }}");
-        {% endif %}
+        {% for p in project %}
+          $("#{{ p|md5 }}_id").prop('checked', true);
+        {% endfor %}
+      }
+      function filterToggle(){
+        $("#detail_filter").toggle();
+        $("#show_filters").toggle();
       }
     </script>
 {% endblock %}
@@ -59,6 +63,13 @@
       width: 400px;
       margin: 0 auto;
     }
+    ul.client_selection {
+      text-align: left;
+      margin-left: 40px;
+    }
+    ul.client_selection li {
+      list-style-type: none;
+    }
   </style>
 {% endblock %}
 
@@ -66,15 +77,19 @@
     <a href="/">&rarr; Home</a>
     <div id="lede">
       <h1>Time Allocation Charts</h1>
-      <form method="GET">
+      <a href="#" id="show_filters" onclick="filterToggle()">Show Filters</a>
+      <form method="GET" id="detail_filter" style="display: none;">
         <input type="date" name="start" id="start_id" value="{{ start }}" />
         <input type="date" name="end" id="end_id" value="{{ end }}" />
-        <select name="project" id="project_id">
-          <option value="">All Projects<option>
+        <ul class="client_selection">
           {% for client in all_client_list %}
-            <option value="{{ client.0 }}">{{ client.0 }}</option>
+            <li>
+              <input value="{{ client.0 }}" name="project" type="checkbox" value="" id="{{ client.0|md5 }}_id">
+              <label for="{{ client.0|md5 }}_id">{{ client.0 }}</label>
+            </li>
           {% endfor %}
-        </select>
+        </ul>
+        <a href="#" onclick="filterToggle()">Hide Filters</a>
         <input type="submit" value="Go" />
       </form>
     </div>

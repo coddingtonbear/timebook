@@ -6,8 +6,8 @@
     {% if current.is_active %}
       <h1><em>{{ human_username }}</em>
         {% if current.is_ticket %}
-          is working on ticket
-          <a href="{{ current.ticket_url }}" {% if current.chili_detail %}title="{{ current.chili_detail }}"{% endif %}>#{{ current.description }}</a>
+          is working on
+          <a href="{{ current.ticket_url }}" {% if current.chili_detail %}title="{{ current.chili_detail }}"{% endif %}>{{ current.description }}</a>
           <strong>{{ current.chili_detail }}</strong>
         {% elif current.description %}
           is working on
@@ -24,8 +24,7 @@
         {% if current.description %}
           But he was last working on 
           {% if current.ticket_number %}
-            ticket
-            <a href="{{ current.ticket_url }}">#{{ current.description }}</a>
+            <a href="{{ current.ticket_url }}">{{ current.description }}</a>
           {% else %}
             <strong>{{ current.description }}</strong> 
           {% endif %}

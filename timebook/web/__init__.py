@@ -1,9 +1,11 @@
 from ConfigParser import NoSectionError, NoOptionError
+import datetime
+import json
 import logging
 import subprocess
 from functools import wraps
 
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 
 from timebook import get_best_user_guess, CONFIG_FILE, \
         LOGS, logger, TIMESHEET_DB, TimesheetRow, ChiliprojectLookupHelper
@@ -47,10 +49,115 @@ def gather_information(view_func, *args, **kwargs):
         return view_func(cursor, config, *args, **kwargs)
     return _wrapped_view_func
 
-@app.route("/balance/")
+@app.route("/charts/")
 @gather_information
-def balance(cursor, config):
-    return ""
+def billable(cursor, config):
+    start = request.args.get('start', (datetime.datetime.now() - datetime.timedelta(days = 30)).strftime("%Y-%m-%d"))
+    end = request.args.get('end', datetime.datetime.now().strftime("%Y-%m-%d"))
+    project = request.args.get('project', '')
+
+    select_constraint = ''
+    if start:
+        select_constraint = select_constraint + " AND start_time > STRFTIME('%%s', '%s', 'utc') " % start
+    if end:
+        select_constraint = select_constraint + " AND start_time < STRFTIME('%%s', '%s', 'utc', '1 day') " % end
+    if project:
+        select_constraint = select_constraint + " AND project = '%s' " % project
+
+    logger.info(select_constraint)
+
+    billable_by_day_sql = """
+        SELECT
+            date,
+            ROUND(SUM(CASE WHEN entry.billable = 1 THEN entry.duration ELSE 0 END) / CAST(SUM(entry.duration) AS FLOAT) * 100, 1)
+        FROM (
+            SELECT 
+                billable,
+                STRFTIME('%Y-%m-%d', start_time, 'unixepoch', 'localtime') AS date,
+                end_time - start_time as duration
+            FROM entry
+            INNER JOIN entry_details ON entry_details.entry_id = entry.id
+            LEFT JOIN ticket_details ON entry_details.ticket_number = ticket_details.number
+            WHERE 1  """ + (select_constraint if select_constraint else "") + """
+        ) AS entry
+        GROUP BY date
+        ORDER BY date
+    """
+    billable_by_day_raw = cursor.execute(billable_by_day_sql).fetchall()
+    billable_by_day = []
+    prev_date = False
+    for row in billable_by_day_raw:
+        this_date = row[0]
+        while prev_date and prev_date != (datetime.datetime.strptime(this_date, "%Y-%m-%d") - datetime.timedelta(days = 1)).strftime("%Y-%m-%d"):
+            prev_date = (datetime.datetime.strptime(prev_date, "%Y-%m-%d") + datetime.timedelta(days = 1)).strftime("%Y-%m-%d")
+            if 0 < int(datetime.datetime.strptime(prev_date, "%Y-%m-%d").strftime("%w")) < 6:
+                billable_by_day.append([prev_date, 0])
+        billable_by_day.append(row)
+        prev_date = row[0]
+
+    all_client_list = cursor.execute("""
+        SELECT distinct project FROM ticket_details
+        """).fetchall()
+
+    client_list = cursor.execute("""
+        SELECT distinct project FROM ticket_details
+        INNER JOIN entry_details ON entry_details.ticket_number = ticket_details.number
+        INNER JOIN entry ON entry_details.entry_id = entry.id
+        WHERE 1 """ + ( select_constraint if select_constraint else "") + """
+        ;
+    """).fetchall()
+    if client_list:
+        per_client_sql_array = [];
+        for client in client_list:
+            per_client_sql_array.append("""
+                SUM(CASE WHEN project = '%s' THEN entry.duration ELSE 0 END) AS '%s'
+            """ % (client[0], client[0], ))
+        per_client_sql = ", ".join(per_client_sql_array)
+        client_by_day_sql = """
+            SELECT
+                date,
+                %s
+            FROM (
+            SELECT 
+                ticket_details.project,
+                STRFTIME('%%Y-%%m-%%d', start_time, 'unixepoch', 'localtime') AS date,
+                ROUND(SUM((end_time - start_time)/ CAST(3600 AS FLOAT)), 1) as duration
+            FROM entry
+            INNER JOIN entry_details ON entry_details.entry_id = entry.id
+            INNER JOIN ticket_details ON entry_details.ticket_number = ticket_details.number
+            WHERE 1  """ + (select_constraint.replace("%", "%%") if select_constraint else '') + """
+            GROUP BY STRFTIME('%%Y-%%m-%%d', start_time, 'unixepoch', 'localtime'), ticket_details.project
+            ) AS entry
+            GROUP BY date
+            ORDER BY date
+        """;
+        client_by_day_sql = client_by_day_sql % per_client_sql
+        client_by_day = cursor.execute(client_by_day_sql).fetchall()
+        client_by_day_json_arr = [];
+        prev_date = False
+        for c in client_by_day:
+            this_date = c[0]
+            while prev_date and prev_date != (datetime.datetime.strptime(this_date, "%Y-%m-%d") - datetime.timedelta(days = 1)).strftime("%Y-%m-%d"):
+                prev_date = (datetime.datetime.strptime(prev_date, "%Y-%m-%d") + datetime.timedelta(days = 1)).strftime("%Y-%m-%d")
+                if 0 < int(datetime.datetime.strptime(prev_date, "%Y-%m-%d").strftime("%w")) < 6:
+                    day_arr = [prev_date]
+                    for client in client_list:
+                        day_arr.append(0)
+                    client_by_day_json_arr.append(json.dumps(day_arr))
+            client_by_day_json_arr.append(json.dumps(c))
+            prev_date = c[0]
+    else:
+        client_by_day_json_arr = []
+
+    return render_template("dailygraph.html",
+                billable_data = billable_by_day,
+                all_client_list = all_client_list,
+                client_list = client_list,
+                client_by_day = client_by_day_json_arr,
+                start = start,
+                end = end,
+                project = project
+            )
 
 @app.route("/")
 @gather_information

@@ -118,7 +118,7 @@ def billable(cursor, config):
     if client_list:
         per_client_sql_array = [];
         per_client_sql_array.append("""
-                ROUND(SUM(entry.duration), 1) AS total
+                COALESCE(ROUND(SUM(entry.duration), 1), 0) AS total
             """)
         for client in client_list:
             per_client_sql_array.append("""
@@ -154,6 +154,7 @@ def billable(cursor, config):
                 prev_date = (datetime.datetime.strptime(prev_date, "%Y-%m-%d") + datetime.timedelta(days = 1)).strftime("%Y-%m-%d")
                 if 0 < int(datetime.datetime.strptime(prev_date, "%Y-%m-%d").strftime("%w")) < 6:
                     day_arr = [prev_date]
+                    day_arr.append(0)
                     for client in client_list:
                         day_arr.append(0)
                     client_by_day_json_arr.append(json.dumps(day_arr))

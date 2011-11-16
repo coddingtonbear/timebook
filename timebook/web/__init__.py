@@ -117,6 +117,9 @@ def billable(cursor, config):
     """).fetchall()
     if client_list:
         per_client_sql_array = [];
+        per_client_sql_array.append("""
+                ROUND(SUM(entry.duration), 1) AS total
+            """)
         for client in client_list:
             per_client_sql_array.append("""
                 SUM(CASE WHEN project = '%s' THEN entry.duration ELSE 0 END) AS '%s'
@@ -132,8 +135,8 @@ def billable(cursor, config):
                 STRFTIME('%%Y-%%m-%%d', start_time, 'unixepoch', 'localtime') AS date,
                 ROUND(SUM((end_time - start_time)/ CAST(3600 AS FLOAT)), 1) as duration
             FROM entry
-            INNER JOIN entry_details ON entry_details.entry_id = entry.id
-            INNER JOIN ticket_details ON entry_details.ticket_number = ticket_details.number
+            LEFT JOIN entry_details ON entry_details.entry_id = entry.id
+            LEFT JOIN ticket_details ON entry_details.ticket_number = ticket_details.number
             WHERE 1  """ + (select_constraint.replace("%", "%%") if select_constraint else '') + """
             GROUP BY STRFTIME('%%Y-%%m-%%d', start_time, 'unixepoch', 'localtime'), ticket_details.project
             ) AS entry
@@ -145,6 +148,7 @@ def billable(cursor, config):
         client_by_day_json_arr = [];
         prev_date = False
         for c in client_by_day:
+            logging.info(c)
             this_date = c[0]
             while prev_date and prev_date != (datetime.datetime.strptime(this_date, "%Y-%m-%d") - datetime.timedelta(days = 1)).strftime("%Y-%m-%d"):
                 prev_date = (datetime.datetime.strptime(prev_date, "%Y-%m-%d") + datetime.timedelta(days = 1)).strftime("%Y-%m-%d")

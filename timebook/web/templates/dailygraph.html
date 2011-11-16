@@ -17,7 +17,7 @@
         ]);
 
         chart = new google.visualization.LineChart(document.getElementById('billable_chart_div'));
-        chart.draw(data, {height: 800, title: 'Billable Percentage by Day'});
+        chart.draw(data, {height: 200, title: 'Billable Percentage by Day'});
 
         var data2 = new google.visualization.DataTable();
         data2.addColumn("string", "Date");
@@ -31,7 +31,7 @@
           {% endfor %}
         ]);
         chart2 = new google.visualization.LineChart(document.getElementById('by_client_chart_div'));
-        chart2.draw(data2, {height: 800, title: 'Project Time Allocation by Day', series:{ 0: {type: 'bars', color: '#CCCCCC'}}});
+        chart2.draw(data2, {height: 600, title: 'Project Time Allocation by Day', series:{ 0: {type: 'bars', color: '#CCCCCC'}}});
 
 
         $("#start_id").datepicker({

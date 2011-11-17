@@ -21,7 +21,7 @@
 
         var data2 = new google.visualization.DataTable();
         data2.addColumn("string", "Date");
-        data2.addColumn("number", "Total");
+        data2.addColumn("number", "Total Hours Ticked");
         {% for client in client_list %}
           data2.addColumn("number", "{{ client.0 }}");
         {% endfor %}
@@ -31,7 +31,7 @@
           {% endfor %}
         ]);
         chart2 = new google.visualization.LineChart(document.getElementById('by_client_chart_div'));
-        chart2.draw(data2, {height: 600, title: 'Project Time Allocation by Day', series:{ 0: {type: 'bars', color: '#CCCCCC'}}});
+        chart2.draw(data2, {height: 600, title: 'Project Time Allocation by Day', series:{ 0: {type: 'bars', color: '#CCCCCC'}}, vAxis: {baseline: 8}});
 
 
         $("#start_id").datepicker({

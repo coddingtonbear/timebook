@@ -133,7 +133,7 @@ def billable(cursor, config):
             SELECT 
                 ticket_details.project,
                 STRFTIME('%%Y-%%m-%%d', start_time, 'unixepoch', 'localtime') AS date,
-                ROUND(SUM((end_time - start_time)/ CAST(3600 AS FLOAT)), 1) as duration
+                ROUND(SUM((COALESCE(end_time, STRFTIME('%%s', 'now')) - start_time)/ CAST(3600 AS FLOAT)), 1) as duration
             FROM entry
             LEFT JOIN entry_details ON entry_details.entry_id = entry.id
             LEFT JOIN ticket_details ON entry_details.ticket_number = ticket_details.number

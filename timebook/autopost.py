@@ -84,6 +84,8 @@ class ParthenonTimeTracker(object):
                 start_time > STRFTIME('%s', ?, 'utc')
                 AND
                 start_time < STRFTIME('%s', ?, 'utc', '1 day')
+                AND
+                sheet = 'default'
             """, (day.strftime("%Y-%m-%d"), day.strftime("%Y-%m-%d"), ))
         results = self.db.fetchall()
 

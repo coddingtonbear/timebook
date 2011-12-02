@@ -202,6 +202,8 @@ def pay_period_info(cursor, args, extra = None):
                 start_time >= STRFTIME('%s', ?, 'utc')
                 AND
                 start_time <= STRFTIME('%s', ?, 'utc', '1 day')
+                AND
+                sheet = 'default'
             """, (
                 begin_time.strftime("%Y-%m-%d"),
                 begin_time.strftime("%Y-%m-%d"),
@@ -228,6 +230,7 @@ def pay_period_info(cursor, args, extra = None):
                     OR
                     end_time is null
                 )
+                AND sheet = 'default'
             """, (
                 begin_time.strftime("%Y-%m-%d"),
                 end_time.strftime("%Y-%m-%d")
@@ -808,6 +811,7 @@ YYYY-MM-DD.')
         FROM entry
         LEFT JOIN entry_details ON entry_details.entry_id = entry.id
         WHERE start_time > STRFTIME('%s', ?, 'utc') and (end_time < STRFTIME('%s', ?, 'utc', '1 day') or end_time is null)
+        AND sheet = 'default'
         GROUP BY billable
         ORDER BY billable
         """, (start_date, end_date))
@@ -836,6 +840,7 @@ YYYY-MM-DD.')
         LEFT JOIN ticket_details ON
             ticket_details.number = entry_details.ticket_number
         WHERE start_time > STRFTIME('%s', ?, 'utc') and (end_time < STRFTIME('%s', ?, 'utc', '1 day') OR end_time is null)
+        AND sheet = 'default'
         GROUP BY project
         ORDER BY hours DESC
         """, 
@@ -863,6 +868,7 @@ YYYY-MM-DD.')
         INNER JOIN ticket_details ON
             ticket_details.number = entry_details.ticket_number
         WHERE start_time > STRFTIME('%s', ?, 'utc') and (end_time < STRFTIME('%s', ?, 'utc', '1 day') OR end_time is null)
+        AND sheet = 'default'
         GROUP BY details, number
         ORDER BY hours DESC
         LIMIT 10

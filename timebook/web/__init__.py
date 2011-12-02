@@ -87,7 +87,7 @@ def billable(cursor, config):
             FROM entry
             INNER JOIN entry_details ON entry_details.entry_id = entry.id
             LEFT JOIN ticket_details ON entry_details.ticket_number = ticket_details.number
-            WHERE sheet = 'default' AND """ + (select_constraint if select_constraint else "") + """
+            WHERE sheet = 'default' """ + (select_constraint if select_constraint else "") + """
         ) AS entry
         GROUP BY date
         ORDER BY date
@@ -112,7 +112,7 @@ def billable(cursor, config):
         SELECT distinct project FROM ticket_details
         INNER JOIN entry_details ON entry_details.ticket_number = ticket_details.number
         INNER JOIN entry ON entry_details.entry_id = entry.id
-        WHERE sheet = 'default' AND """ + ( select_constraint if select_constraint else "") + """
+        WHERE sheet = 'default' """ + ( select_constraint if select_constraint else "") + """
         ;
     """).fetchall()
     if client_list:
@@ -137,7 +137,7 @@ def billable(cursor, config):
             FROM entry
             LEFT JOIN entry_details ON entry_details.entry_id = entry.id
             LEFT JOIN ticket_details ON entry_details.ticket_number = ticket_details.number
-            WHERE sheet = 'default' AND  """ + (select_constraint.replace("%", "%%") if select_constraint else '') + """
+            WHERE sheet = 'default' """ + (select_constraint.replace("%", "%%") if select_constraint else '') + """
             GROUP BY STRFTIME('%%Y-%%m-%%d', start_time, 'unixepoch', 'localtime'), ticket_details.project
             ) AS entry
             GROUP BY date

@@ -184,7 +184,7 @@ def index(cursor, config):
             description, 
             ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2) AS hours
         FROM entry 
-        WHERE start_time = (select max(start_time) from entry) AND sheet = 'default'
+        WHERE start_time = (select max(start_time) from entry where sheet = 'default')
         """).fetchone()
 
     todays_tasks_rows = cursor.execute("""

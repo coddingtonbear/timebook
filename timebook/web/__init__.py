@@ -87,7 +87,7 @@ def billable(cursor, config):
             FROM entry
             INNER JOIN entry_details ON entry_details.entry_id = entry.id
             LEFT JOIN ticket_details ON entry_details.ticket_number = ticket_details.number
-            WHERE 1  """ + (select_constraint if select_constraint else "") + """
+            WHERE sheet = 'default' AND """ + (select_constraint if select_constraint else "") + """
         ) AS entry
         GROUP BY date
         ORDER BY date
@@ -112,7 +112,7 @@ def billable(cursor, config):
         SELECT distinct project FROM ticket_details
         INNER JOIN entry_details ON entry_details.ticket_number = ticket_details.number
         INNER JOIN entry ON entry_details.entry_id = entry.id
-        WHERE 1 """ + ( select_constraint if select_constraint else "") + """
+        WHERE sheet = 'default' AND """ + ( select_constraint if select_constraint else "") + """
         ;
     """).fetchall()
     if client_list:
@@ -137,7 +137,7 @@ def billable(cursor, config):
             FROM entry
             LEFT JOIN entry_details ON entry_details.entry_id = entry.id
             LEFT JOIN ticket_details ON entry_details.ticket_number = ticket_details.number
-            WHERE 1  """ + (select_constraint.replace("%", "%%") if select_constraint else '') + """
+            WHERE sheet = 'default' AND  """ + (select_constraint.replace("%", "%%") if select_constraint else '') + """
             GROUP BY STRFTIME('%%Y-%%m-%%d', start_time, 'unixepoch', 'localtime'), ticket_details.project
             ) AS entry
             GROUP BY date
@@ -184,7 +184,7 @@ def index(cursor, config):
             description, 
             ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2) AS hours
         FROM entry 
-        WHERE start_time = (select max(start_time) from entry);
+        WHERE start_time = (select max(start_time) from entry) AND sheet = 'default'
         """).fetchone()
 
     todays_tasks_rows = cursor.execute("""
@@ -195,7 +195,7 @@ def index(cursor, config):
             description, 
             ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2) AS hours
         FROM entry
-        WHERE start_time > strftime('%s', strftime('%Y-%m-%d', 'now', 'localtime'), 'utc')
+        WHERE start_time > strftime('%s', strftime('%Y-%m-%d', 'now', 'localtime'), 'utc') AND sheet = 'default'
         ORDER BY start_time DESC
         """).fetchall()
 

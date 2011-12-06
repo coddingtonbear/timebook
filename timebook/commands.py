@@ -516,10 +516,12 @@ Stop the timer for the current timesheet. Must be called after in.''')
 the period that the out command ends.')
     parser.add_option('-a', '--at', dest='at',
                       help='Set time of clock-out')
+    parser.add_option('--all', dest='all_out', action='store_true', default=False,
+                      help='Clock out of all timesheets')
     opts, args = parser.parse_args(args=args)
     if args:
         parser.error('"t out" takes no arguments.')
-    clock_out(db, opts.at, opts.verbose)
+    clock_out(db, opts.at, opts.verbose, all_out=opts.all_out)
 
     try:
         value = db.config.get('automation', 'post_on_clockout')
@@ -528,7 +530,7 @@ the period that the out command ends.')
     except Exception:
         pass
 
-def clock_out(db, at=None, verbose=False, timestamp=None):
+def clock_out(db, at=None, verbose=False, timestamp=None, all_out=False):
     if not timestamp:
         timestamp = cmdutil.parse_date_time_or_now(at)
     active = dbutil.get_current_start_time(db)
@@ -540,14 +542,24 @@ def clock_out(db, at=None, verbose=False, timestamp=None):
         print timedelta(seconds=active_time)
     if active_time < 0:
         raise SystemExit, "Error: Negative active time"
-    db.execute(u'''
-    update
-        entry
-    set
-        end_time = ?
-    where
-        entry.id = ?
-    ''', (timestamp, active_id))
+    if all_out:
+        db.execute(u'''
+        UPDATE
+            entry
+        SET
+            end_time = ?
+        WHERE
+            end_time = None
+        ''', (timestamp, ))
+    else:
+        db.execute(u'''
+        update
+            entry
+        set
+            end_time = ?
+        where
+            entry.id = ?
+        ''', (timestamp, active_id))
 
 @command('alter the description of the active period', aliases=('write',))
 def alter(db, args):

@@ -549,7 +549,7 @@ def clock_out(db, at=None, verbose=False, timestamp=None, all_out=False):
         SET
             end_time = ?
         WHERE
-            end_time = None
+            end_time is null
         ''', (timestamp, ))
     else:
         db.execute(u'''

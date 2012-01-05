@@ -11,6 +11,7 @@ from flask import Flask, render_template, request
 from timebook import get_best_user_guess, CONFIG_FILE, \
         LOGS, logger, TIMESHEET_DB, TimesheetRow, ChiliprojectLookupHelper
 from timebook.db import Database
+from timebook.dbutil import date_is_untracked
 from timebook.config import parse_config
 
 app = Flask(__name__)
@@ -98,9 +99,11 @@ def billable(cursor, config):
     for row in billable_by_day_raw:
         this_date = row[0]
         while prev_date and prev_date != (datetime.datetime.strptime(this_date, "%Y-%m-%d") - datetime.timedelta(days = 1)).strftime("%Y-%m-%d"):
-            prev_date = (datetime.datetime.strptime(prev_date, "%Y-%m-%d") + datetime.timedelta(days = 1)).strftime("%Y-%m-%d")
+            prev_date_object = (datetime.datetime.strptime(prev_date, "%Y-%m-%d") + datetime.timedelta(days = 1))
+            prev_date = prev_date_object.strftime("%Y-%m-%d")
             if 0 < int(datetime.datetime.strptime(prev_date, "%Y-%m-%d").strftime("%w")) < 6:
-                billable_by_day.append([prev_date, 0])
+                if not date_is_untracked(cursor, prev_date_object.year, prev_date_object.month, prev_date_object.day):
+                    billable_by_day.append([prev_date, 0])
         billable_by_day.append(row)
         prev_date = row[0]
 
@@ -151,13 +154,15 @@ def billable(cursor, config):
             logging.info(c)
             this_date = c[0]
             while prev_date and prev_date != (datetime.datetime.strptime(this_date, "%Y-%m-%d") - datetime.timedelta(days = 1)).strftime("%Y-%m-%d"):
-                prev_date = (datetime.datetime.strptime(prev_date, "%Y-%m-%d") + datetime.timedelta(days = 1)).strftime("%Y-%m-%d")
+                prev_date_object = (datetime.datetime.strptime(prev_date, "%Y-%m-%d") + datetime.timedelta(days = 1))
+                prev_date = prev_date_object.strftime("%Y-%m-%d")
                 if 0 < int(datetime.datetime.strptime(prev_date, "%Y-%m-%d").strftime("%w")) < 6:
-                    day_arr = [prev_date]
-                    day_arr.append(0)
-                    for client in client_list:
+                    if not date_is_untracked(cursor, prev_date_object.year, prev_date_object.month, prev_date_object.day):
+                        day_arr = [prev_date]
                         day_arr.append(0)
-                    client_by_day_json_arr.append(json.dumps(day_arr))
+                        for client in client_list:
+                            day_arr.append(0)
+                        client_by_day_json_arr.append(json.dumps(day_arr))
             client_by_day_json_arr.append(json.dumps(c))
             prev_date = c[0]
     else:

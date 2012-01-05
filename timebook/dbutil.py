@@ -111,3 +111,56 @@ def get_most_recent_clockout(db, sheet):
         -end_time
     ''', (sheet,))
     return db.fetchone()
+
+def date_is_vacation(db, year, month, day):
+    db.execute(u'''
+    select
+        count(*)
+    from
+        vacation
+    where year = ?
+    and month = ?
+    and day = ?
+    ''', (year, month, day,))
+    if db.fetchone()[0] > 0:
+        return True
+    return False
+
+def date_is_holiday(db, year, month, day):
+    db.execute(u'''
+    select
+        count(*)
+    from
+        holidays
+    where year = ?
+    and month = ?
+    and day = ?
+    ''', (year, month, day,))
+    if db.fetchone()[0] > 0:
+        return True
+    return False
+
+def date_is_unpaid(db, year, month, day):
+    db.execute(u'''
+    select
+        count(*)
+    from
+        unpaid
+    where year = ?
+    and month = ?
+    and day = ?
+    ''', (year, month, day,))
+    if db.fetchone()[0] > 0:
+        return True
+    return False
+
+def date_is_untracked(db, year, month, day):
+    untracked_checks = [
+            date_is_vacation,
+            date_is_holiday,
+            date_is_unpaid,
+            ]
+    for check in untracked_checks:
+        if check(db, year, month, day):
+            return True
+    return False

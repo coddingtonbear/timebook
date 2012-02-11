@@ -60,12 +60,16 @@ def gather_information(view_func, *args, **kwargs):
 def posttest(cursor, config):
     user = request.form.get('user')
     command = request.form.get('command')
+    since = request.form.get('since')
+    current = request.form.get('current')
     try:
         args = json.loads(request.form.get('args'))
     except TypeError:
         args = [];
-    return "DATA RECEIVED: %s [%s] %s" % (
+    return "DATA RECEIVED: %s [%s since %s] %s(%s)" % (
                 user, 
+                current,
+                since,
                 command,
                 json.dumps(args),
             )

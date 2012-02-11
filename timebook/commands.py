@@ -104,9 +104,15 @@ def run_command(db, cmd, args):
             db.execute(u'commit')
         current_sheet = dbutil.get_current_sheet(db)
         if db.config.has_option(current_sheet, 'reporting_url') and db.config.has_option('auth', 'username'):
+            current_info = dbutil.get_active_info(db, current_sheet)
             report_to_url(
                         db.config.get(current_sheet, 'reporting_url'),
                         db.config.get('auth', 'username'),
+                        current_info[1] if current_info else '',
+                        (
+                            datetime.utcnow() 
+                            - timedelta(seconds = current_info[0])
+                        ).strftime("%Y-%m-%d %H:%M:%S") if current_info else '',
                         cmd,
                         args
                     )
@@ -117,13 +123,15 @@ def run_command(db, cmd, args):
             db.execute(u'rollback')
         raise
 
-def report_to_url(url, user, command, args):
+def report_to_url(url, user, current, since, command, args):
     try:
         url_data = urlparse(url)
         h = httplib.HTTPConnection(url_data.netloc)
         h.request("POST", url_data.path, urlencode({
                 'user': user,
                 'command': command,
+                'current': current,
+                'since': since,
                 'args': json.dumps(args),
             }), {
                 "Content-type": "application/x-www-form-urlencoded",

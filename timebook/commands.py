@@ -45,25 +45,28 @@ from timebook.autopost import ParthenonTimeTracker
 commands = {}
 cmd_aliases = {}
 
-def pre_hook(db, func_name):
-    if db.config.has_section('hooks'):
-        hook = db.config['hooks'].get(func_name)
-        if hook is not None:
-            __import__(hook, {}, {}, [])
-            mod = sys.modules[hook]
-            if hasattr(mod, 'pre'):
-                return mod.pre
-    return lambda db, args, kwargs: (args, kwargs)
+def pre_hook(db, func_name, args, kwargs):
+    current_sheet = dbutil.get_current_sheet(db)
+    if db.config.has_option(current_sheet, 'pre_hook'):
+        command = db.config.get(current_sheet, 'pre_hook')
+        res = subprocess.call(
+                [command] + args,
+            )
+        if res != 0:
+            raise exceptions.PreHookException("%s (%s)(%s)" % (command, func_name, ', '.join(args)))
+    return True
 
-def post_hook(db, func_name):
-    if db.config.has_section('hooks'):
-        hook = db.config['hooks'].get(func_name)
-        if hook is not None:
-            __import__(hook, {}, {}, [])
-            mod = sys.modules[hook]
-            if hasattr(mod, 'post'):
-                return mod.post
-    return lambda db, res: res
+
+def post_hook(db, func_name, args, kwargs, res):
+    current_sheet = dbutil.get_current_sheet(db)
+    if db.config.has_option(current_sheet, 'post_hook'):
+        command = db.config.get(current_sheet, 'post_hook')
+        res = subprocess.call(
+                [command] + args + [str(res)]
+            )
+        if res != 0:
+            raise exceptions.PostHookException("%s (%s)(%s)(%s)" % (command, func_name, ', '.join(args), res))
+    return True
 
 def command(desc, name=None, aliases=(), locking = True):
     def decorator(func):
@@ -75,9 +78,17 @@ def command(desc, name=None, aliases=(), locking = True):
             cmd_aliases[alias] = func_name
         @wraps(func)
         def decorated(db, args, **kwargs):
-            args, kwargs = pre_hook(db, func_name)(db, args, kwargs)
-            res = func(db, args, **kwargs)
-            return post_hook(db, func_name)(db, res)
+            try:
+                pre_hook(db, func_name, args, kwargs)
+                res = func(db, args, **kwargs)
+                post_hook(db, func_name, args, kwargs, res)
+            except exceptions.PreHookException as e:
+                print "Error, command aborted. Pre hook failed: %s" % e
+                raise e
+            except exceptions.PostHookException as e:
+                print "Warning. Post hook failed: %s" % e
+                raise e
+        commands[func_name] = decorated
         return decorated
     return decorator
 
@@ -89,11 +100,6 @@ def run_command(db, cmd, args):
         if commands[func].locking:
             db.execute(u'begin')
         commands[func](db, args)
-    except:
-        if commands[func].locking:
-            db.execute(u'rollback')
-        raise
-    else:
         if commands[func].locking:
             db.execute(u'commit')
         current_sheet = dbutil.get_current_sheet(db)
@@ -106,6 +112,10 @@ def run_command(db, cmd, args):
                     )
         elif db.config.has_option(current_sheet, 'reporting_url'):
             print "Please specify a username in your configuration."
+    except:
+        if commands[func].locking:
+            db.execute(u'rollback')
+        raise
 
 def report_to_url(url, user, command, args):
     try:

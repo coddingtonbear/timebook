@@ -143,11 +143,23 @@ a format like::
   username = MY USERNAME
   password = MY PASSWORD
 
-Additionally, if you would like your hours to be automatically posted when
+Additionally, you can set sheet-specific reporting urls and hooks by setting
+a configuration section using the name of the sheet for which you would like
+a pre, post, or reporting hook to be executed, and the name of the URL or 
+application you would like executed like::
+    
+  [default]
+  post_hook = /path/to/some/application
+  pre_hook = /path/to/some/other/application
+  reporting_url = http://www.somedomain.com/reporting/
+
+In the event that you would like your hours to be automatically posted when
 you run ``t out``, you can enter a configuration key like the following::
 
   [automation]
   post_on_clockout = True
+
+
 
 Commands
 ~~~~~~~~

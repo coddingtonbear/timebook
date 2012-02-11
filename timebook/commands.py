@@ -24,7 +24,8 @@
 from datetime import datetime, timedelta
 from functools import wraps
 from gettext import ngettext
-from httplib2 import Http, HttpLib2Error
+import httplib
+import json
 import os
 import optparse
 import re
@@ -32,6 +33,7 @@ import subprocess
 import sys
 import time
 from urllib import urlencode
+from urlparse import urlparse
 
 from dateutil import relativedelta
 from dateutil import rrule
@@ -94,29 +96,38 @@ def run_command(db, cmd, args):
     else:
         if commands[func].locking:
             db.execute(u'commit')
-        if db.config.has_option('auth', 'reporting_url') and db.config.has_option('auth', 'username'):
+        current_sheet = dbutil.get_current_sheet(db)
+        if db.config.has_option(current_sheet, 'reporting_url') and db.config.has_option('auth', 'username'):
             report_to_url(
-                        db.config.get('auth', 'reporting_url'),
+                        db.config.get(current_sheet, 'reporting_url'),
+                        db.config.get('auth', 'username'),
                         cmd,
                         args
                     )
-        elif db.config.has_option('auth', 'reporting_url'):
+        elif db.config.has_option(current_sheet, 'reporting_url'):
             print "Please specify a username in your configuration."
 
-def report_to_url(url, command, args):
+def report_to_url(url, user, command, args):
     try:
-        h = Http()
-        response, content = h.request(url, "POST", urlencode({
+        url_data = urlparse(url)
+        h = httplib.HTTPConnection(url_data.netloc)
+        h.request("POST", url_data.path, urlencode({
+                'user': user,
                 'command': command,
-                'args': args,
-            }))
+                'args': json.dumps(args),
+            }), {
+                "Content-type": "application/x-www-form-urlencoded",
+                "Accept": "text/plain"
+            })
+        response = h.getresponse()
+        content = response.read()
         if response.status != 200:
             raise exceptions.ReportingException(
                 "HTTP Error %s encountered while posting reporting information." % response.status
                 )
         if len(content) > 0:
-            print "Reporting completed: %s" % content
-    except (exceptions.ReportingException, HttpLib2Error, ) as e: 
+            print content
+    except Exception as e: 
         print e
 
 def get_date_from_cli_string(option,  option_str, value, parser):

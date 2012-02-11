@@ -55,6 +55,21 @@ def gather_information(view_func, *args, **kwargs):
         return view_func(cursor, config, *args, **kwargs)
     return _wrapped_view_func
 
+@app.route("/posttest/", methods=["POST",])
+@gather_information
+def posttest(cursor, config):
+    user = request.form.get('user')
+    command = request.form.get('command')
+    try:
+        args = json.loads(request.form.get('args'))
+    except TypeError:
+        args = [];
+    return "DATA RECEIVED: %s [%s] %s" % (
+                user, 
+                command,
+                json.dumps(args),
+            )
+
 @app.route("/charts/")
 @gather_information
 def billable(cursor, config):

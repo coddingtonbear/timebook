@@ -24,18 +24,20 @@
 from datetime import datetime, timedelta
 from functools import wraps
 from gettext import ngettext
+from httplib2 import Http, HttpLib2Error
 import os
 import optparse
 import re
 import subprocess
 import sys
 import time
+from urllib import urlencode
 
 from dateutil import relativedelta
 from dateutil import rrule
 
 from timebook import LOGIN_URL, TIMESHEET_URL, TIMESHEET_DB, CONFIG_FILE, \
-        logger, dbutil, cmdutil
+        logger, dbutil, cmdutil, exceptions
 from timebook.autopost import ParthenonTimeTracker
 
 commands = {}
@@ -92,6 +94,30 @@ def run_command(db, cmd, args):
     else:
         if commands[func].locking:
             db.execute(u'commit')
+        if db.config.has_option('auth', 'reporting_url') and db.config.has_option('auth', 'username'):
+            report_to_url(
+                        db.config.get('auth', 'reporting_url'),
+                        cmd,
+                        args
+                    )
+        elif db.config.has_option('auth', 'reporting_url'):
+            print "Please specify a username in your configuration."
+
+def report_to_url(url, command, args):
+    try:
+        h = Http()
+        response, content = h.request(url, "POST", urlencode({
+                'command': command,
+                'args': args,
+            }))
+        if response.status != 200:
+            raise exceptions.ReportingException(
+                "HTTP Error %s encountered while posting reporting information." % response.status
+                )
+        if len(content) > 0:
+            print "Reporting completed: %s" % content
+    except (exceptions.ReportingException, HttpLib2Error, ) as e: 
+        print e
 
 def get_date_from_cli_string(option,  option_str, value, parser):
     if(value == 'today'):

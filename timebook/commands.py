@@ -48,29 +48,39 @@ cmd_aliases = {}
 
 def pre_hook(db, func_name, args, kwargs):
     current_sheet = dbutil.get_current_sheet(db)
-    if db.config.has_option(current_sheet, 'pre_hook'):
-        command = shlex.split(
-                    db.config.get(current_sheet, 'pre_hook'),
+    keys_to_check = [
+                'pre_%s_hook' % func_name,
+                'pre_hook',
+            ]
+    for key_name in keys_to_check:
+        if db.config.has_option(current_sheet, key_name):
+            command = shlex.split(
+                        db.config.get(current_sheet, key_name),
+                    )
+            res = subprocess.call(
+                    command + args,
                 )
-        res = subprocess.call(
-                command + args,
-            )
-        if res != 0:
-            raise exceptions.PreHookException("%s (%s)(%s)" % (command, func_name, ', '.join(args)))
+            if res != 0:
+                raise exceptions.PreHookException("%s (%s)(%s)" % (command, func_name, ', '.join(args)))
     return True
 
 
 def post_hook(db, func_name, args, kwargs, res):
     current_sheet = dbutil.get_current_sheet(db)
-    if db.config.has_option(current_sheet, 'post_hook'):
-        command = shlex.split(
-                    db.config.get(current_sheet, 'post_hook'),
+    keys_to_check = [
+                'post_%s_hook' % func_name,
+                'post_hook',
+            ]
+    for key_name in keys_to_check:
+        if db.config.has_option(current_sheet, key_name):
+            command = shlex.split(
+                        db.config.get(current_sheet, key_name),
+                    )
+            res = subprocess.call(
+                    command + args + [str(res)]
                 )
-        res = subprocess.call(
-                command + args + [str(res)]
-            )
-        if res != 0:
-            raise exceptions.PostHookException("%s (%s)(%s)(%s)" % (command, func_name, ', '.join(args), res))
+            if res != 0:
+                raise exceptions.PostHookException("%s (%s)(%s)(%s)" % (command, func_name, ', '.join(args), res))
     return True
 
 def command(desc, name=None, aliases=(), locking = True):

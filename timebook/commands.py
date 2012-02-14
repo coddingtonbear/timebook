@@ -29,6 +29,7 @@ import json
 import os
 import optparse
 import re
+import shlex
 import subprocess
 import sys
 import time
@@ -48,9 +49,11 @@ cmd_aliases = {}
 def pre_hook(db, func_name, args, kwargs):
     current_sheet = dbutil.get_current_sheet(db)
     if db.config.has_option(current_sheet, 'pre_hook'):
-        command = db.config.get(current_sheet, 'pre_hook')
+        command = shlex.split(
+                    db.config.get(current_sheet, 'pre_hook'),
+                )
         res = subprocess.call(
-                [command] + args,
+                command + args,
             )
         if res != 0:
             raise exceptions.PreHookException("%s (%s)(%s)" % (command, func_name, ', '.join(args)))
@@ -60,9 +63,11 @@ def pre_hook(db, func_name, args, kwargs):
 def post_hook(db, func_name, args, kwargs, res):
     current_sheet = dbutil.get_current_sheet(db)
     if db.config.has_option(current_sheet, 'post_hook'):
-        command = db.config.get(current_sheet, 'post_hook')
+        command = shlex.split(
+                    db.config.get(current_sheet, 'post_hook'),
+                )
         res = subprocess.call(
-                [command] + args + [str(res)]
+                command + args + [str(res)]
             )
         if res != 0:
             raise exceptions.PostHookException("%s (%s)(%s)(%s)" % (command, func_name, ', '.join(args), res))

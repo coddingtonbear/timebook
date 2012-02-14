@@ -83,12 +83,13 @@ def post_hook(db, func_name, args, kwargs, res):
                 raise exceptions.PostHookException("%s (%s)(%s)(%s)" % (command, func_name, ', '.join(args), res))
     return True
 
-def command(desc, name=None, aliases=(), locking = True):
+def command(desc, name=None, aliases=(), locking=True, read_only=True):
     def decorator(func):
         func_name = name or func.func_code.co_name
         commands[func_name] = func
         func.description = desc
         func.locking = locking
+        func.read_only = read_only
         for alias in aliases:
             cmd_aliases[alias] = func_name
         @wraps(func)
@@ -118,21 +119,22 @@ def run_command(db, cmd, args):
         if commands[func].locking:
             db.execute(u'commit')
         current_sheet = dbutil.get_current_sheet(db)
-        if db.config.has_option(current_sheet, 'reporting_url') and db.config.has_option('auth', 'username'):
-            current_info = dbutil.get_active_info(db, current_sheet)
-            report_to_url(
-                        db.config.get(current_sheet, 'reporting_url'),
-                        db.config.get('auth', 'username'),
-                        current_info[1] if current_info else '',
-                        (
-                            datetime.utcnow() 
-                            - timedelta(seconds = current_info[0])
-                        ).strftime("%Y-%m-%d %H:%M:%S") if current_info else '',
-                        cmd,
-                        args
-                    )
-        elif db.config.has_option(current_sheet, 'reporting_url'):
-            print "Please specify a username in your configuration."
+        if not commands[func].read_only:
+            if db.config.has_option(current_sheet, 'reporting_url') and db.config.has_option('auth', 'username'):
+                current_info = dbutil.get_active_info(db, current_sheet)
+                report_to_url(
+                            db.config.get(current_sheet, 'reporting_url'),
+                            db.config.get('auth', 'username'),
+                            current_info[1] if current_info else '',
+                            (
+                                datetime.utcnow() 
+                                - timedelta(seconds = current_info[0])
+                            ).strftime("%Y-%m-%d %H:%M:%S") if current_info else '',
+                            cmd,
+                            args
+                        )
+            elif db.config.has_option(current_sheet, 'reporting_url'):
+                print "Please specify a username in your configuration."
     except:
         if commands[func].locking:
             db.execute(u'rollback')
@@ -225,7 +227,7 @@ def post(db, args, extra = None):
             raise e
 
 @command('provides hours information for the current pay period', name='hours',
-        aliases=('payperiod', 'pay', 'period', 'offset', ))
+        aliases=('payperiod', 'pay', 'period', 'offset', ), read_only=True)
 def pay_period_info(cursor, args, extra = None):
     verbose = False
     hours_per_day = 8
@@ -472,7 +474,7 @@ timesheet and switch to the default timesheet.''')
     if switch_to_default:
         switch(db, ['default'])
 
-@command('show the available timesheets', aliases=('ls',))
+@command('show the available timesheets', aliases=('ls',), read_only=True)
 def list(db, args):
     parser = optparse.OptionParser(usage='''usage: %prog list
 
@@ -538,7 +540,7 @@ of the available timesheets.')
         table.append([cur_name, active, today, total_time])
     cmdutil.pprint_table(table)
 
-@command('switch to a new timesheet')
+@command('switch to a new timesheet', read_only=True)
 def switch(db, args):
     parser = optparse.OptionParser(usage='''usage: %prog switch TIMESHEET
 
@@ -652,7 +654,7 @@ timesheet. For example, ``t alter Documenting timebook.``''')
         entry.id = ?
     ''', (' '.join(args), entry_id))
 
-@command('show all running timesheets', aliases=('active',))
+@command('show all running timesheets', aliases=('active',), read_only=True)
 def running(db, args):
     parser = optparse.OptionParser(usage='''usage: %prog running
 
@@ -672,7 +674,7 @@ Print all active sheets and any messages associated with them.''')
     cmdutil.pprint_table([(u'Timesheet', u'Description')] + db.fetchall())
 
 @command('show the status of the current timesheet',
-         aliases=('info',))
+         aliases=('info',), read_only=True)
 def now(db, args):
     parser = optparse.OptionParser(usage='''usage: %prog now [TIMESHEET]
 
@@ -811,7 +813,7 @@ def modify(db, args):
         )
     db.execute(sql, args)
 
-@command('get ticket details')
+@command('get ticket details', read_only=True)
 def details(db, args):
     ticket_number = args[0]
     try:
@@ -860,7 +862,7 @@ def details(db, args):
     except IndexError as e:
         print "No information available."
 
-@command('get timesheet statistics', locking = False)
+@command('get timesheet statistics', locking=False, read_only=True)
 def stats(db, args):
     parser = optparse.OptionParser(usage='''usage: %prog stats''')
     parser.add_option('-s', '--start', dest='start', type='string',
@@ -969,7 +971,7 @@ YYYY-MM-DD.')
                 )
 
 @command('display timesheet, by default the current one',
-         aliases=('export', 'format', 'show'))
+         aliases=('export', 'format', 'show'), read_only=True)
 def display(db, args):
     # arguments
     parser = optparse.OptionParser(usage='''usage: %prog display [TIMESHEET]

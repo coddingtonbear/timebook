@@ -1,6 +1,6 @@
 # __init__.py
 #
-# Copyright (c) 2008-2009 Trevor Caira
+# Copyright (c) 2008-2009 Trevor Caira, 2011-2012 Adam Coddington
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -35,7 +35,7 @@ import time
 import urllib2
 
 __author__ = 'Trevor Caira <trevor@caira.com>, Adam Coddington <me@adamcoddington.net>'
-__version__ = (2, 0, 1)
+__version__ = (2, 0, 2)
 
 def get_version():
     return '.'.join(str(bit) for bit in __version__)

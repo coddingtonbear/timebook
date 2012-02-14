@@ -1,6 +1,6 @@
 # commands.py
 #
-# Copyright (c) 2008-2009 Trevor Caira
+# Copyright (c) 2008-2009 Trevor Caira, 2011-2012 Adam Coddington
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the

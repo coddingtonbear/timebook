@@ -77,7 +77,7 @@ class ParthenonTimeTracker(object):
             data.append(('endmin[]', entry.end_time_or_now.strftime('%M')))
             data.append(('mantisid[]', entry.ticket_number if entry.ticket_number else ''))
             data.append(('description[]', entry.timesheet_description))
-            data.append(('debug[]', '1' if entry.is_billable else '0'))
+            data.append(('debug[]', '1' if not entry.is_billable else '0'))
             self.db.execute("""
                 REPLACE INTO entry_details (entry_id, ticket_number, billable)
                 VALUES (?, ?, ?)""", (

@@ -36,12 +36,10 @@ import time
 from urllib import urlencode
 from urlparse import urlparse
 
-from dateutil import relativedelta
-from dateutil import rrule
-
 from timebook import LOGIN_URL, TIMESHEET_URL, TIMESHEET_DB, CONFIG_FILE, \
         logger, dbutil, cmdutil, exceptions
 from timebook.autopost import ParthenonTimeTracker
+from timebook.payperiodutil import PayPeriodUtil
 
 commands = {}
 cmd_aliases = {}
@@ -228,172 +226,27 @@ def post(db, args, extra = None):
 
 @command('provides hours information for the current pay period', name='hours',
         aliases=('payperiod', 'pay', 'period', 'offset', ), read_only=True)
-def pay_period_info(cursor, args, extra = None):
-    verbose = False
-    hours_per_day = 8
-    def is_unpaid(date_to_check):
-        dx = date_to_check
-        cursor.execute("""
-            SELECT * FROM unpaid
-            WHERE year = ? AND month = ? AND day = ?
-            """, (dx.year, dx.month, dx.day,))
-        if(cursor.fetchone()):
-            return True
-        else:
-            return False
-
-    def is_vacation(date_to_check):
-        dx = date_to_check
-        cursor.execute("""
-            SELECT * FROM vacation
-            WHERE year = ? AND month = ? AND day = ?
-            """, (dx.year, dx.month, dx.day,))
-        if(cursor.fetchone()):
-            return True
-        else:
-            return False
-
-    def is_holiday(date_to_check):
-        dx = date_to_check
-        cursor.execute("""
-            SELECT * FROM holidays
-            WHERE year = ? AND month = ? AND day = ?
-            """, (dx.year, dx.month, dx.day,))
-        if(cursor.fetchone()):
-            return True
-        else:
-            return False
-
-    def count_hours_for_day(begin_time):
-        cursor.execute("""
-            SELECT SUM(
-                COALESCE(end_time, STRFTIME('%s', 'now'))
-                - start_time)
-            FROM entry
-            WHERE
-                start_time >= STRFTIME('%s', ?, 'utc')
-                AND
-                start_time <= STRFTIME('%s', ?, 'utc', '1 day')
-                AND
-                sheet = 'default'
-            """, (
-                begin_time.strftime("%Y-%m-%d"),
-                begin_time.strftime("%Y-%m-%d"),
-                ))
-        result = cursor.fetchone()
-        if(result[0]):
-            total_hours = float(result[0]) / 60 / 60
-        else:
-            total_hours = 0
-        return total_hours
-
-
-    def count_hours_after(begin_time, end_time):
-        cursor.execute("""
-            SELECT SUM(
-                COALESCE(end_time, STRFTIME('%s', 'now'))
-                - start_time)
-            FROM entry
-            WHERE
-                start_time >= STRFTIME('%s', ?, 'utc')
-                AND
-                (
-                    end_time <= STRFTIME('%s', ?, 'utc', '1 day') 
-                    OR
-                    end_time is null
-                )
-                AND sheet = 'default'
-            """, (
-                begin_time.strftime("%Y-%m-%d"),
-                end_time.strftime("%Y-%m-%d")
-                ))
-        result = cursor.fetchone()
-        if(result[0]):
-            total_hours = float(result[0]) / 60 / 60
-        else:
-            total_hours = 0
-        return total_hours
-
-    begin_period = datetime.now() - relativedelta.relativedelta(day = 31, months=1, hour=0, minute=0, second=0, weekday=rrule.FR(-2)) + timedelta(days = 1)
-    end_period = datetime.now()
-    real_end_period = datetime.now() + relativedelta.relativedelta(day = 31, weekday=rrule.FR(-2))
-
-    if(end_period > real_end_period):
-        begin_period = datetime.now() - relativedelta.relativedelta(day = 31, months = 0, hour = 0, minute = 0, second = 0, weekday = rrule.FR(-2)) + timedelta(days = 1)
-        real_end_period = datetime.now() + relativedelta.relativedelta(day = 31, months = 1, weekday = rrule.FR(-2))
+def pay_period_info(db, args, extra = None):
+    ppu = PayPeriodUtil()
+    hour_info = ppu.get_hours_details()
 
     print "Period: %s through %s" % (
             begin_period.strftime("%Y-%m-%d"), 
             real_end_period.strftime("%Y-%m-%d"), 
             )
 
-    all_weekdays_rule = rrule.rrule(rrule.DAILY, byweekday=(rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR, ), dtstart=begin_period)
-    all_weekdays = all_weekdays_rule.between(begin_period, end_period)
-    expected_hours = hours_per_day * len(all_weekdays)
-    unpaid = 0
-    vacation = 0
-
-    for day in all_weekdays:
-        if(is_holiday(day)):
-            expected_hours = expected_hours - hours_per_day
-            if(verbose):
-                print "%s\t(holiday)" % (day.strftime("%Y-%m-%d"), )
-        elif(is_unpaid(day)):
-            expected_hours = expected_hours - hours_per_day
-            unpaid = unpaid + hours_per_day
-            if(verbose):
-                print "%s\t(unpaid)" % (day.strftime("%Y-%m-%d"), )
-        elif(is_vacation(day)):
-            expected_hours = expected_hours - hours_per_day
-            vacation = vacation + hours_per_day
-            if(verbose):
-                print "%s\t(vacation)" % (day.strftime("%Y-%m-%d"),)
-        else:
-            if(verbose):
-                print "%s\t%s hours" % (
-                    day.strftime("%Y-%m-%d"),
-                    round(count_hours_for_day(day), 2)
-                    )
-    total_hours = count_hours_after(begin_period, end_period)
-
-    out_time = datetime.now() + timedelta(hours = (expected_hours - total_hours))
-
-    if(verbose):
+    if(hour_info['actual'] > hour_info['expected']):
+        print "%s hour SURPLUS" % (hour_info['actual'] - hour_info['expected'],)
+        print "%s hours unpaid" % (hour_info['unpaid'],)
+        print "%s hours vacation" % (hour_info['vacation'], )
         print ""
-        print "Total Hours:\t%s" % total_hours
-        print "Expected Hours:\t%s" % expected_hours
-
-    if(total_hours > expected_hours):
-        if(verbose):
-            print ""
-            print "SURPLUS"
-            print "+%s" % (total_hours - expected_hours, )
-            print "%s hours unpaid" % (unpaid,)
-            print "%s hours vacation" % (vacation,)
-            print ""
-            print "You should have left at %s today to maintain hours." % out_time.strftime("%H:%M")
-        else:
-            print "%s hour SURPLUS" % (total_hours - expected_hours,)
-            print "%s hours unpaid" % (unpaid,)
-            print "%s hours vacation" % (vacation, )
-            print ""
-            print "You should have left at %s today to maintain hours." % out_time.strftime("%H:%M")
+        print "You should have left at %s today to maintain hours." % hour_info['out_time'].strftime("%H:%M")
     else:
-        if(verbose):
-            print ""
-            print "DEFICIT"
-            print "-%s" % (expected_hours - total_hours, )
-            print "%s hours unpaid" % (unpaid)
-            print "%s hours vacation" % (vacation, )
-            print ""
-            print "You should leave at %s today to maintain hours." % out_time.strftime("%H:%M")
-        else:
-            print "%s hour DEFICIT" % (expected_hours - total_hours)
-            print "%s hours unpaid" % (unpaid)
-            print "%s hours vacation" % (vacation, )
-            print ""
-            print "You should leave at %s today to maintain hours." % out_time.strftime("%H:%M")
-
+        print "%s hour DEFICIT" % (hour_info['expected'] - hour_info['actual'])
+        print "%s hours unpaid" % (hour_info['unpaid'])
+        print "%s hours vacation" % (hour_info['vacation'], )
+        print ""
+        print "You should leave at %s today to maintain hours." % hour_info['out_time'].strftime("%H:%M")
 
 @command('start the timer for the current timesheet', name='in',
          aliases=('start',))

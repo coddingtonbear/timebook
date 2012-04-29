@@ -24,27 +24,30 @@ import ConfigParser
 import urllib
 import urllib2
 
-from timebook import TimesheetRow, ChiliprojectLookupHelper
+from timebook.chiliproject import ChiliprojectConnector
+from timebook.dbutil import TimesheetRow
 
-class HourReporter(object):
-    def __init__(self, login_url, timesheet_url, timesheet_db, config, date, db, fake = False):
-        self.timesheet_url = timesheet_url
-        self.timesheet_db = timesheet_db
-        self.login_url = login_url
-        self.config = self.load_configuration(config)
+class TimesheetPoster(object):
+    _config_section = 'timesheet_poster'
+
+    def __init__(self, db, date, fake = False):
+        self.timesheet_url = db.config.get_with_default(
+                _config_section, 
+                'timesheet_url',
+                'http://www.parthenonsoftware.com/timesheet/timesheet.php'
+                )
+        self.login_url = db.config.get_with_default(
+                _config_section, 
+                'login_url', 
+                'http://www.parthenonsoftware.com/timesheet/index.php'
+                )
         self.date = date
         self.db = db
         self.fake = fake
 
-    def load_configuration(self, configfile):
-        co = ConfigParser.SafeConfigParser()
-        if(os.path.exists(configfile)):
-            co.read(configfile)
-        return co
-
     def get_config(self, section, option):
         try:
-            return self.config.get(section, option)
+            return self.db.config.get(section, option)
         except (ConfigParser.NoSectionError, ConfigParser.NoOptionError), e:
             if(option.upper().find("pass") or option[0:1] == "_"):
                 return getpass.getpass("%s: " % option.capitalize())
@@ -109,7 +112,7 @@ class HourReporter(object):
             """, (day.strftime("%Y-%m-%d"), day.strftime("%Y-%m-%d"), ))
         results = self.db.fetchall()
 
-        helper = ChiliprojectLookupHelper(
+        helper = ChiliprojectConnector(
                     username = self.username,
                     password = self.password
                 )

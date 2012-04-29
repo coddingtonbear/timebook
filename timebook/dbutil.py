@@ -21,6 +21,8 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+import re
+
 def get_current_sheet(db):
     db.execute(u'''
     select
@@ -164,3 +166,121 @@ def date_is_untracked(db, year, month, day):
         if check(db, year, month, day):
             return True
     return False
+
+class TimesheetRow(object):
+    TICKET_MATCHER = re.compile(r"^(?:(\d{4,6})(?:[^0-9]|$)+|.*#(\d{4,6})(?:[^0-9]|$)+)")
+    TICKET_URL = "http://chili.parthenonsoftware.com/issues/%s/"
+
+    def __init__(self):
+        self.lookup_handler = False
+
+    @staticmethod
+    def from_row(row):
+        t = TimesheetRow()
+        t.id = row[0]
+        t.start_time_epoch = row[1]
+        t.end_time_epoch = row[2]
+        t.description = row[3]
+        t.hours = row[4]
+        return t
+
+    def set_lookup_handler(self, handler):
+        self.lookup_handler = handler
+
+    @property
+    def is_active(self):
+        if not self.end_time_epoch:
+            return True
+        return False
+
+    @property
+    def chili_detail(self):
+        if self.lookup_handler:
+            if self.ticket_number:
+                return self.lookup_handler.get_description_for_ticket(self.ticket_number)
+
+    @property
+    def start_time(self):
+        return datetime.datetime.fromtimestamp(float(self.start_time_epoch))
+
+    @property
+    def end_time(self):
+        if self.end_time_epoch:
+            return datetime.datetime.fromtimestamp(float(self.end_time_epoch))
+
+    @property
+    def is_ticket(self):
+        if self.description and self.ticket_number:
+            return True
+
+    @property
+    def ticket_number(self):
+        if self.description:
+            matches = self.TICKET_MATCHER.match(self.description)
+            if matches:
+                for match in matches.groups():
+                    if match:
+                        return match
+        return None
+
+    @property
+    def timesheet_description(self):
+        if self.ticket_number == self.description:
+            return ''
+        else:
+            return self.description
+
+    @property
+    def is_billable(self):
+        if self.description:
+            ticket_match = re.match(r"^(\d{4,6})$", self.description)
+            force_billable_search = re.search(r"\(Billable\)", self.description, re.IGNORECASE)
+            if ticket_match:
+                return True
+            if force_billable_search:
+                return True
+        return False
+
+    @property
+    def ticket_url(self):
+        return self.TICKET_URL % self.ticket_number
+
+    @property
+    def end_time_or_now(self):
+        return datetime.datetime.fromtimestamp(float(self.end_time_epoch_or_now))
+
+    @property
+    def end_time_epoch_or_now(self):
+        if self.end_time_epoch:
+            return self.end_time_epoch
+        else:
+            return time.time()
+
+    @property
+    def total_hours(self):
+        return float(self.end_time_epoch_or_now - self.start_time_epoch) / 3600
+
+    def __str__(self):
+        return """%s - %s; %s""" % (
+                    self.start_time,
+                    self.end_time_or_now,
+                    self.description if not self.ticket_number else "%s%s" % (
+                            self.ticket_number,
+                            " (" + self.chili_detail + ")" if self.chili_detail else ""
+                        ),
+                )
+
+CHILIPROJECT_LOOKUP = None
+def timesheet_row_factory(cursor, row):
+    global CHILIPROJECT_LOOKUP
+    if not CHILIPROJECT_LOOKUP:
+        CHILIPROJECT_LOOKUP = ChiliprojectConnector()
+    ts = TimesheetRow.from_row(row)
+    ts.set_lookup_handler(CHILIPROJECT_LOOKUP)
+    return ts
+
+def dict_factory(cursor, row):
+    d = {}
+    for idx,col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d

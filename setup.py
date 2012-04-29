@@ -5,10 +5,10 @@ from timebook import get_version
 setup(
     name='timebook',
     version=get_version(),
-    url='http://bitbucket.org/trevor/timebook/',
+    url='http://bitbucket.org/latestrevision/timebook/',
     description='track what you spend time on',
     author='Trevor Caira, Adam Coddington',
-    author_email='trevor@caira.com',
+    author_email='me@adamcoddington.net',
     classifiers=[
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',

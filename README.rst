@@ -108,26 +108,11 @@ to your timesheet online.
 Web Interface
 ~~~~~~~~~~~~~
 
-If you're as pro-transparency as I am, you could enable the web display for
-your timesheet by connecting Apache (or your webserver of choice) with
-the wsgi script in the root of this project.
+A web interface for viewing timebook information is available in the project
+``timebook_web``; head over to http://bitbucket.org/latestrevision/timebook_web/
+for details.
 
-The provided wsgi and apache templates ar set up with the assumption that 
-you've created a virtual environment named ``timebook`` and have stored 
-that virtual environment in the standard place.
-
-You will need to install the additional requirement ``Flask`` (which itself
-has several dependencies), but a simple::
-
-  $ pip install Flask
-
-should suffice.
-
-The application will find your timesheet (by searching home folders for the
-most recently updated timesheet database), and gather your name from the system
-if possible.
-
-Configuration
+configuration
 ~~~~~~~~~~~~~
 
 A configuration file lives in ``~/.config/timebook/timebook.ini`` that you can 

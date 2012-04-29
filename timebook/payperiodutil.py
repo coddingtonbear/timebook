@@ -17,7 +17,7 @@ class PayPeriodUtil(object):
         if not weekdays_rule:
             self.weekdays_rule = rrule.rrule(rrule.DAILY, byweekday=(rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR, ), dtstart=begin_period)
 
-    def get_hours_details()
+    def get_hours_details():
         all_weekdays = self.weekdays_rule.between(begin_period, end_period)
         expected_hours = self.hours_per_day * len(all_weekdays)
         unpaid = 0

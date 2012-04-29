@@ -1,5 +1,3 @@
-# autopost.py
-#
 # Copyright (c) 2011-2012 Adam Coddington
 #
 # Permission is hereby granted, free of charge, to any person obtaining
@@ -28,7 +26,7 @@ import urllib2
 
 from timebook import TimesheetRow, ChiliprojectLookupHelper
 
-class ParthenonTimeTracker(object):
+class HourReporter(object):
     def __init__(self, login_url, timesheet_url, timesheet_db, config, date, db, fake = False):
         self.timesheet_url = timesheet_url
         self.timesheet_db = timesheet_db

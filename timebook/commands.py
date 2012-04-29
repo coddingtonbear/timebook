@@ -38,7 +38,7 @@ from urlparse import urlparse
 
 from timebook import LOGIN_URL, TIMESHEET_URL, TIMESHEET_DB, CONFIG_FILE, \
         logger, dbutil, cmdutil, exceptions
-from timebook.autopost import ParthenonTimeTracker
+from timebook.autopost import HourReporter 
 from timebook.payperiodutil import PayPeriodUtil
 
 commands = {}
@@ -210,7 +210,7 @@ def post(db, args, extra = None):
         )
     (options, args, ) = parser.parse_args()
 
-    with ParthenonTimeTracker(
+    with HourReporter(
             LOGIN_URL,
             TIMESHEET_URL,
             TIMESHEET_DB,

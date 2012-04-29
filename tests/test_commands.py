@@ -104,23 +104,19 @@ class TestCommandFunctions(unittest.TestCase):
         cmds.TIMESHEET_DB = arbitrary_db_path
         cmds.CONFIG_FILE = arbitrary_config_file
 
-        cmds.ParthenonTimeTracker = mock.MagicMock()
+        cmds.TimesheetPoster= mock.MagicMock()
 
         cmds.post(self.db_mock, self.arbitrary_args)
 
-        cmds.ParthenonTimeTracker.assert_called_with(
-                    arbitrary_login_url,
-                    arbitrary_timesheet_url,
-                    arbitrary_db_path,
-                    arbitrary_config_file,
+        cmds.TimesheetPoster.assert_called_with(
+                    self.db_mock,
                     datetime.datetime.fromtimestamp(self.now).date(),
-                    db = self.db_mock,
                     fake = False
                 )
 
         self.assertTrue(
                 mock.call().__enter__().main() 
-                in cmds.ParthenonTimeTracker.mock_calls
+                in cmds.TimesheetPoster.mock_calls
             )
 
     def test_in(self):

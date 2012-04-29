@@ -227,22 +227,22 @@ def post(db, args, extra = None):
 @command('provides hours information for the current pay period', name='hours',
         aliases=('payperiod', 'pay', 'period', 'offset', ), read_only=True)
 def pay_period_info(db, args, extra = None):
-    ppu = PayPeriodUtil()
+    ppu = PayPeriodUtil(db)
     hour_info = ppu.get_hours_details()
 
     print "Period: %s through %s" % (
-            begin_period.strftime("%Y-%m-%d"), 
-            real_end_period.strftime("%Y-%m-%d"), 
+            hour_info['begin_period'].strftime("%Y-%m-%d"), 
+            hour_info['end_period'].strftime("%Y-%m-%d"), 
             )
 
     if(hour_info['actual'] > hour_info['expected']):
-        print "%s hour SURPLUS" % (hour_info['actual'] - hour_info['expected'],)
+        print "%.2f hour SURPLUS" % (hour_info['actual'] - hour_info['expected'],)
         print "%s hours unpaid" % (hour_info['unpaid'],)
         print "%s hours vacation" % (hour_info['vacation'], )
         print ""
         print "You should have left at %s today to maintain hours." % hour_info['out_time'].strftime("%H:%M")
     else:
-        print "%s hour DEFICIT" % (hour_info['expected'] - hour_info['actual'])
+        print "%.2f hour DEFICIT" % (hour_info['expected'] - hour_info['actual'])
         print "%s hours unpaid" % (hour_info['unpaid'])
         print "%s hours vacation" % (hour_info['vacation'], )
         print ""

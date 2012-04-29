@@ -32,12 +32,12 @@ class TimesheetPoster(object):
 
     def __init__(self, db, date, fake = False):
         self.timesheet_url = db.config.get_with_default(
-                _config_section, 
+                self._config_section, 
                 'timesheet_url',
                 'http://www.parthenonsoftware.com/timesheet/timesheet.php'
                 )
         self.login_url = db.config.get_with_default(
-                _config_section, 
+                self._config_section, 
                 'login_url', 
                 'http://www.parthenonsoftware.com/timesheet/index.php'
                 )

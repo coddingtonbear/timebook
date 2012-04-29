@@ -5,16 +5,19 @@ from dateutil import rrule
 
 class PayPeriodUtil(object):
     def __init__(self, begin_period=None, end_period=None, weekdays_rule=None, hours_per_day=8):
+        self.begin_period = begin_period
+        self.end_period = end_period
+        self.weekdays_rule = weekdays_rule
         self.hours_per_day = hours_per_day
-        if not begin_period:
+        if not self.begin_period:
             self.begin_period = datetime.now() - relativedelta.relativedelta(day = 31, months=1, hour=0, minute=0, second=0, weekday=rrule.FR(-2)) + timedelta(days = 1)
-        if not end_period:
+        if not self.end_period:
             self.end_period = datetime.now()
             self.real_end_period = datetime.now() + relativedelta.relativedelta(day = 31, weekday=rrule.FR(-2))
-        if(end_period > real_end_period):
+        if(self.end_period > self.real_end_period):
             self.begin_period = datetime.now() - relativedelta.relativedelta(day = 31, months = 0, hour = 0, minute = 0, second = 0, weekday = rrule.FR(-2)) + timedelta(days = 1)
             self.real_end_period = datetime.now() + relativedelta.relativedelta(day = 31, months = 1, weekday = rrule.FR(-2))
-        if not weekdays_rule:
+        if not self.weekdays_rule:
             self.weekdays_rule = rrule.rrule(rrule.DAILY, byweekday=(rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR, ), dtstart=begin_period)
 
     def get_hours_details():

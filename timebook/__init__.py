@@ -35,7 +35,7 @@ import time
 import urllib2
 
 __author__ = 'Trevor Caira <trevor@caira.com>, Adam Coddington <me@adamcoddington.net>'
-__version__ = (2, 0, 3)
+__version__ = (3, 0, 0)
 
 def get_version():
     return '.'.join(str(bit) for bit in __version__)

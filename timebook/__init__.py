@@ -38,6 +38,6 @@ handler = logging.StreamHandler(sys.stderr)
 handler.setLevel(logging.INFO)
 logger.addHandler(handler)
 
-CONFIG_DIR = os.path.expanduser('~/.config/timebook'))
+CONFIG_DIR = os.path.expanduser('~/.config/timebook')
 CONFIG_FILE = os.path.join(CONFIG_DIR, "timebook.ini")
 TIMESHEET_DB = os.path.join(CONFIG_DIR, "sheets.db")

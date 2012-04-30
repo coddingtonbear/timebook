@@ -25,11 +25,14 @@ import datetime
 import time
 import re
 
+
 class AmbiguousLookup(ValueError):
     pass
 
+
 class NoMatch(ValueError):
     pass
+
 
 def complete(it, lookup, key_desc):
     partial_match = None
@@ -46,6 +49,7 @@ def complete(it, lookup, key_desc):
         raise NoMatch('no such %s "%s".' % (key_desc, lookup))
     else:
         return partial_match
+
 
 def pprint_table(table, footer_row=False):
     if footer_row:
@@ -68,12 +72,15 @@ matches = [(re.compile(r'^\d+:\d+$'), today_str + " ", ":00"),
            (re.compile(r'^\d+-\d+-\d+\s+\d+:\d+:\d+$'), "", ""),
           ]
 fmt = "%Y-%m-%d %H:%M:%S"
+
+
 def parse_date_time(dt_str):
     for (patt, prepend, postpend) in matches:
         if patt.match(dt_str):
             res = time.strptime(prepend + dt_str + postpend, fmt)
             return int(time.mktime(res))
-    raise ValueError, "%s is not in a valid time format"%dt_str
+    raise ValueError("%s is not in a valid time format" % dt_str)
+
 
 def parse_date_time_or_now(dt_str):
     if dt_str:

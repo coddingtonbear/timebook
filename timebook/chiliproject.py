@@ -19,17 +19,24 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+import base64
+import json
+import urllib2
+
+from timebook import logger
+
+
 class ChiliprojectConnector(object):
     def __init__(self, db, username=None, password=None):
-        from timebook.db import Database
         self.db = db
         self.loaded = False
 
         self.domain = self.db.config.get_with_default(
-                'chiliproject', 
-                'domain', 
+                'chiliproject',
+                'domain',
                 'chili.parthenonsoftware.com'
                 )
+
         self.issue_format = 'http://%s/issues/%%s.json' % self.domain
         if not username or not password:
             try:
@@ -94,7 +101,10 @@ class ChiliprojectConnector(object):
                             data["issue"]["subject"],
                         )
             except urllib2.HTTPError as e:
-                logger.debug("Encountered an HTTP Exception while gathering data. %s" % e)
+                logger.debug(
+                    "Encountered an HTTP Exception while "
+                    + "gathering data. %s" % e
+                    )
             except Exception as e:
                 logger.exception(e)
 

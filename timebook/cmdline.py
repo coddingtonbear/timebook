@@ -36,6 +36,7 @@ DEFAULTS = {'config': CONFIG_FILE,
             'timebook': TIMESHEET_DB,
             'encoding': locale.getpreferredencoding()}
 
+
 def make_parser():
     cmd_descs = ['%s - %s' % (k, commands[k].description) for k
                  in sorted(commands)]
@@ -57,6 +58,7 @@ alternate encoding to decode command line options and arguments (default: \
 "%s")' % DEFAULTS['encoding'])
     return parser
 
+
 def parse_options(parser):
     options, args = parser.parse_args()
     encoding = options.__dict__.pop('encoding')
@@ -71,6 +73,7 @@ def parse_options(parser):
         # default to ``t now``
         args = ['now'] + args
     return options, args
+
 
 def run_from_cmdline():
     parser = make_parser()

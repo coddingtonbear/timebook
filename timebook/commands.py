@@ -43,6 +43,7 @@ from timebook.payperiodutil import PayPeriodUtil
 commands = {}
 cmd_aliases = {}
 
+
 def pre_hook(db, func_name, args, kwargs):
     current_sheet = dbutil.get_current_sheet(db)
     keys_to_check = [
@@ -58,7 +59,9 @@ def pre_hook(db, func_name, args, kwargs):
                     command + args,
                 )
             if res != 0:
-                raise exceptions.PreHookException("%s (%s)(%s)" % (command, func_name, ', '.join(args)))
+                raise exceptions.PreHookException(
+                        "%s (%s)(%s)" % (command, func_name, ', '.join(args))
+                    )
     return True
 
 
@@ -77,8 +80,12 @@ def post_hook(db, func_name, args, kwargs, res):
                     command + args + [str(res)]
                 )
             if res != 0:
-                raise exceptions.PostHookException("%s (%s)(%s)(%s)" % (command, func_name, ', '.join(args), res))
+                raise exceptions.PostHookException(
+                        "%s (%s)(%s)(%s)" %
+                        (command, func_name, ', '.join(args), res)
+                    )
     return True
+
 
 def command(desc, name=None, aliases=(), locking=True, read_only=True):
     def decorator(func):
@@ -89,6 +96,7 @@ def command(desc, name=None, aliases=(), locking=True, read_only=True):
         func.read_only = read_only
         for alias in aliases:
             cmd_aliases[alias] = func_name
+
         @wraps(func)
         def decorated(db, args, **kwargs):
             try:
@@ -105,6 +113,7 @@ def command(desc, name=None, aliases=(), locking=True, read_only=True):
         return decorated
     return decorator
 
+
 def run_command(db, cmd, args):
     func = cmd_aliases.get(cmd, None)
     if func is None:
@@ -117,25 +126,33 @@ def run_command(db, cmd, args):
             db.execute(u'commit')
         current_sheet = dbutil.get_current_sheet(db)
         if not commands[func].read_only:
-            if db.config.has_option(current_sheet, 'reporting_url') and db.config.has_option('auth', 'username'):
+            if db.config.has_option(
+                        current_sheet,
+                        'reporting_url'
+                    ) and db.config.has_option(
+                        'auth',
+                        'username'
+                    ):
                 current_info = dbutil.get_active_info(db, current_sheet)
                 report_to_url(
-                            db.config.get(current_sheet, 'reporting_url'),
-                            db.config.get('auth', 'username'),
-                            current_info[1] if current_info else '',
-                            (
-                                datetime.utcnow() 
-                                - timedelta(seconds = current_info[0])
-                            ).strftime("%Y-%m-%d %H:%M:%S") if current_info else '',
-                            cmd,
-                            args
-                        )
+                        db.config.get(current_sheet, 'reporting_url'),
+                        db.config.get('auth', 'username'),
+                        current_info[1] if current_info else '',
+                        (
+                            datetime.utcnow()
+                            - timedelta(seconds=current_info[0])
+                        ).strftime("%Y-%m-%d %H:%M:%S")
+                        if current_info else '',
+                        cmd,
+                        args
+                    )
             elif db.config.has_option(current_sheet, 'reporting_url'):
                 print "Please specify a username in your configuration."
     except:
         if commands[func].locking:
             db.execute(u'rollback')
         raise
+
 
 def report_to_url(url, user, current, since, command, args):
     try:
@@ -155,30 +172,35 @@ def report_to_url(url, user, current, since, command, args):
         content = response.read()
         if response.status != 200:
             raise exceptions.ReportingException(
-                "HTTP Error %s encountered while posting reporting information." % response.status
+                "HTTP Error %s encountered while posting reporting "
+                + "information." % response.status
                 )
         if len(content) > 0:
             print content
-    except Exception as e: 
+    except Exception as e:
         print e
+
 
 def get_date_from_cli_string(option,  option_str, value, parser):
     if(value == 'today'):
         the_date = datetime.now().date()
     elif(value == 'yesterday'):
-        the_date = (datetime.now() + timedelta(days = -1)).date()
+        the_date = (datetime.now() + timedelta(days=-1)).date()
     elif(re.match("^-\d+$", value)):
-        the_date = (datetime.now() + timedelta(days = int(value))).date()
+        the_date = (datetime.now() + timedelta(days=int(value))).date()
     elif(re.match("^\d{4}-\d{2}-\d{2}$", value)):
         try:
             the_date = datetime.strptime(value, "%Y-%m-%d").date()
-        except Exception, e:
-            raise optparse.OptionValueError("'%s' does not match format YYYY-MM-DD" % value)
+        except Exception as e:
+            raise optparse.OptionValueError(
+                    "'%s' does not match format YYYY-MM-DD" % value
+                )
     else:
         raise optparse.OptionValueError("Unrecognized date argument.")
     setattr(parser.values, option.dest, the_date)
 
 # Commands
+
 
 @command("open the backend's interactive shell", aliases=('shell',))
 def backend(db, args):
@@ -188,60 +210,76 @@ Run an interactive database session on the timebook database. Requires
 the sqlite3 command.''')
     subprocess.call(('sqlite3', db.path))
 
+
 @command('start a new task on the current timesheet', name='change')
-def change(db, args, extra = None):
+def change(db, args, extra=None):
     out(db, [])
     in_(db, args)
 
-@command('post timesheet hours to timesheet online', name='post', locking=False)
-def post(db, args, extra = None):
+
+@command('post timesheet hours to timesheet online',
+        name='post', locking=False)
+def post(db, args, extra=None):
     parser = optparse.OptionParser()
     parser.add_option("--date", type="string", action="callback",
-            help="Date for which to post timesheet entries for.  Must be in either YYYY-MM-DD format, be the string 'yesterday' or 'today', or be a negative number indicating the number of days ago for which to run the report.  (default: today)",
-            callback = get_date_from_cli_string,
-            dest = "date",
-            default = datetime.now().date()
+            help='''Date for which to post timesheet entries for.
+
+Must be in either YYYY-MM-DD format, be the string 'yesterday' or 'today',
+or be a negative number indicating the number of days ago for which to run
+the report.  (default: today)''',
+            callback=get_date_from_cli_string,
+            dest="date",
+            default=datetime.now().date()
         )
     parser.add_option("--fake", action="store_true",
-            help="Generate statistics, but do not post the entries to the system.",
             dest="fake",
-            default = False
+            default=False
         )
     (options, args, ) = parser.parse_args()
 
     with TimesheetPoster(
             db,
             options.date,
-            fake = options.fake
+            fake=options.fake
             ) as app:
         try:
             app.main()
         except Exception, e:
             raise e
 
+
 @command('provides hours information for the current pay period', name='hours',
         aliases=('payperiod', 'pay', 'period', 'offset', ), read_only=True)
-def pay_period_info(db, args, extra = None):
+def pay_period_info(db, args, extra=None):
     ppu = PayPeriodUtil(db)
     hour_info = ppu.get_hours_details()
 
     print "Period: %s through %s" % (
-            hour_info['begin_period'].strftime("%Y-%m-%d"), 
-            hour_info['end_period'].strftime("%Y-%m-%d"), 
+            hour_info['begin_period'].strftime("%Y-%m-%d"),
+            hour_info['end_period'].strftime("%Y-%m-%d"),
             )
 
     if(hour_info['actual'] > hour_info['expected']):
-        print "%.2f hour SURPLUS" % (hour_info['actual'] - hour_info['expected'],)
+        print "%.2f hour SURPLUS" % (
+                hour_info['actual'] - hour_info['expected'],
+            )
         print "%s hours unpaid" % (hour_info['unpaid'],)
         print "%s hours vacation" % (hour_info['vacation'], )
         print ""
-        print "You should have left at %s today to maintain hours." % hour_info['out_time'].strftime("%H:%M")
+        print "You should have left at %s today to maintain hours." % (
+                hour_info['out_time'].strftime("%H:%M"),
+            )
     else:
-        print "%.2f hour DEFICIT" % (hour_info['expected'] - hour_info['actual'])
+        print "%.2f hour DEFICIT" % (
+                hour_info['expected'] - hour_info['actual']
+            )
         print "%s hours unpaid" % (hour_info['unpaid'])
         print "%s hours vacation" % (hour_info['vacation'], )
         print ""
-        print "You should leave at %s today to maintain hours." % hour_info['out_time'].strftime("%H:%M")
+        print "You should leave at %s today to maintain hours." % (
+                hour_info['out_time'].strftime("%H:%M"),
+            )
+
 
 @command('start the timer for the current timesheet', name='in',
          aliases=('start',))
@@ -276,14 +314,13 @@ with arguments.')
         clock_out(db, timestamp=timestamp)
     running = dbutil.get_active_info(db, sheet)
     if running is not None:
-        raise SystemExit, 'error: timesheet already active'
+        raise SystemExit('error: timesheet already active')
     most_recent_clockout = dbutil.get_most_recent_clockout(db, sheet)
     description = u' '.join(args) or None
     if most_recent_clockout:
         (previous_timestamp, previous_description) = most_recent_clockout
         if timestamp < previous_timestamp:
-            raise SystemExit, \
-                  'error: time periods could end up overlapping'
+            raise SystemExit('error: time periods could end up overlapping')
         if opts.resume:
             description = previous_description
     db.execute(u'''
@@ -291,6 +328,7 @@ with arguments.')
         sheet, start_time, description, extra
     ) values (?,?,?,?)
     ''', (sheet, timestamp, description, extra))
+
 
 @command('delete a timesheet', aliases=('delete',))
 def kill(db, args):
@@ -321,6 +359,7 @@ timesheet and switch to the default timesheet.''')
     db.execute(u'delete from entry where sheet = ?', (to_delete,))
     if switch_to_default:
         switch(db, ['default'])
+
 
 @command('show the available timesheets', aliases=('ls',), read_only=True)
 def list(db, args):
@@ -388,6 +427,7 @@ of the available timesheets.')
         table.append([cur_name, active, today, total_time])
     cmdutil.pprint_table(table)
 
+
 @command('switch to a new timesheet', read_only=True)
 def switch(db, args):
     parser = optparse.OptionParser(usage='''usage: %prog switch TIMESHEET
@@ -426,6 +466,7 @@ number of entries of the timesheet.')
                 u'switched to timesheet "%s" (%s entries)' % (
                     sheet, entry_count), entry_count)
 
+
 @command('stop the timer for the current timesheet', aliases=('stop',))
 def out(db, args):
     parser = optparse.OptionParser(usage='''usage: %prog out
@@ -436,8 +477,8 @@ Stop the timer for the current timesheet. Must be called after in.''')
 the period that the out command ends.')
     parser.add_option('-a', '--at', dest='at',
                       help='Set time of clock-out')
-    parser.add_option('--all', dest='all_out', action='store_true', default=False,
-                      help='Clock out of all timesheets')
+    parser.add_option('--all', dest='all_out', action='store_true',
+            default=False, help='Clock out of all timesheets')
     opts, args = parser.parse_args(args=args)
     if args:
         parser.error('"t out" takes no arguments.')
@@ -450,18 +491,19 @@ the period that the out command ends.')
     except Exception:
         pass
 
+
 def clock_out(db, at=None, verbose=False, timestamp=None, all_out=False):
     if not timestamp:
         timestamp = cmdutil.parse_date_time_or_now(at)
     active = dbutil.get_current_start_time(db)
     if active is None:
-        raise SystemExit, 'error: timesheet not active'
+        raise SystemExit('error: timesheet not active')
     active_id, start_time = active
     active_time = timestamp - start_time
     if verbose:
         print timedelta(seconds=active_time)
     if active_time < 0:
-        raise SystemExit, "Error: Negative active time"
+        raise SystemExit("Error: Negative active time")
     if all_out:
         db.execute(u'''
         UPDATE
@@ -481,6 +523,7 @@ def clock_out(db, at=None, verbose=False, timestamp=None, all_out=False):
             entry.id = ?
         ''', (timestamp, active_id))
 
+
 @command('alter the description of the active period', aliases=('write',))
 def alter(db, args):
     parser = optparse.OptionParser(usage='''usage: %prog alter NOTES...
@@ -491,7 +534,7 @@ timesheet. For example, ``t alter Documenting timebook.``''')
 
     active = dbutil.get_current_active_info(db)
     if active is None:
-        raise SystemExit, 'error: timesheet not active'
+        raise SystemExit('error: timesheet not active')
     entry_id = active[0]
     db.execute(u'''
     update
@@ -501,6 +544,7 @@ timesheet. For example, ``t alter Documenting timebook.``''')
     where
         entry.id = ?
     ''', (' '.join(args), entry_id))
+
 
 @command('show all running timesheets', aliases=('active',), read_only=True)
 def running(db, args):
@@ -520,6 +564,7 @@ Print all active sheets and any messages associated with them.''')
         entry.sheet asc;
     ''')
     cmdutil.pprint_table([(u'Timesheet', u'Description')] + db.fetchall())
+
 
 @command('show the status of the current timesheet',
          aliases=('info',), read_only=True)
@@ -552,9 +597,8 @@ associated with the current period.')
 
     entry_count = dbutil.get_entry_count(db, sheet)
     if entry_count == 0:
-        raise SystemExit, '%(prog)s: error: sheet is empty. For program \
-usage, see "%(prog)s --help".' % {'prog': os.path.basename(sys.argv[0])}
-
+        raise SystemExit('%(prog)s: error: sheet is empty. For program \
+usage, see "%(prog)s --help".' % {'prog': os.path.basename(sys.argv[0])})
     running = dbutil.get_active_info(db, sheet)
     notes = ''
     if running is None:
@@ -570,6 +614,7 @@ usage, see "%(prog)s --help".' % {'prog': os.path.basename(sys.argv[0])}
         print notes
     else:
         print '%s: %s' % (sheet, active)
+
 
 @command('insert a new timesheet entry at a specified time')
 def insert(db, args):
@@ -588,13 +633,16 @@ def insert(db, args):
                 )
         db.execute(sql, args)
     except (ValueError, IndexError, ) as e:
-        print "Insert requires three arguments, START END DESCRIPTION. Please use the date format \"YYYY-MM-DD HH:MM\""
+        print "Insert requires three arguments, START END DESCRIPTION. \
+Please use the date format \"YYYY-MM-DD HH:MM\""
         logger.exception(e)
+
 
 @command('change details about a specific entry in the timesheet')
 def modify(db, args):
     if len(args) < 1:
-        raise Exception("You must select the ID number of an entry of you'd like to modify.")
+        raise Exception("You must select the ID number of an entry \
+of you'd like to modify.")
     id = args[0]
     db.execute(u"""
         SELECT start_time, end_time, description
@@ -606,7 +654,6 @@ def modify(db, args):
         end = datetime.fromtimestamp(row[1])
     except TypeError:
         end = None
-
 
     new_start = raw_input("Start Time (\"%s\"):\t" % (
             start.strftime("%H:%M")
@@ -651,7 +698,8 @@ def modify(db, args):
         description = row[2]
 
     sql = """
-        UPDATE entry SET start_time = ?, end_time = ?, description = ? WHERE id = ?
+        UPDATE entry
+        SET start_time = ?, end_time = ?, description = ? WHERE id = ?
         """
     args = (
             int(time.mktime(dt_newstart.timetuple())),
@@ -660,6 +708,7 @@ def modify(db, args):
             id
         )
     db.execute(sql, args)
+
 
 @command('get ticket details', read_only=True)
 def details(db, args):
@@ -676,7 +725,13 @@ def details(db, args):
         db.execute("""
             SELECT
                 SUM(
-                    ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2)
+                    ROUND(
+                        (
+                            COALESCE(end_time, strftime('%s', 'now'))
+                            - start_time
+                        )
+                        / CAST(3600 AS FLOAT)
+                    , 2)
                 ) AS hours
             FROM ticket_details
             INNER JOIN entry_details ON
@@ -690,7 +745,13 @@ def details(db, args):
         db.execute("""
             SELECT
                 SUM(
-                    ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2)
+                    ROUND(
+                        (
+                            COALESCE(end_time, strftime('%s', 'now'))
+                            - start_time
+                        )
+                        / CAST(3600 AS FLOAT)
+                    , 2)
                 ) AS hours
             FROM ticket_details
             INNER JOIN entry_details ON
@@ -710,18 +771,21 @@ def details(db, args):
     except IndexError as e:
         print "No information available."
 
+
 @command('get timesheet statistics', locking=False, read_only=True)
 def stats(db, args):
     parser = optparse.OptionParser(usage='''usage: %prog stats''')
     parser.add_option('-s', '--start', dest='start', type='string',
-                      metavar='DATE', 
-                      default = (datetime.now() - timedelta(days = 7)).strftime('%Y-%m-%d'),
+                      metavar='DATE',
+                      default=(
+                          datetime.now() - timedelta(days=7)
+                        ).strftime('%Y-%m-%d'),
                       help='Show only entries \
 starting after 00:00 on this date. The date should be of the format \
 YYYY-MM-DD.')
     parser.add_option('-e', '--end', dest='end', type='string',
-                      metavar='DATE', 
-                      default = datetime.now().strftime('%Y-%m-%d'),
+                      metavar='DATE',
+                      default=datetime.now().strftime('%Y-%m-%d'),
                       help='Show only entries \
 ending before 00:00 on this date. The date should be of the format \
 YYYY-MM-DD.')
@@ -735,14 +799,25 @@ YYYY-MM-DD.')
             )
 
     db.execute("""
-        SELECT 
-            COALESCE(billable, 0), 
+        SELECT
+            COALESCE(billable, 0),
             SUM(
-                ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2)
+                ROUND(
+                    (
+                        COALESCE(end_time, strftime('%s', 'now'))
+                        - start_time
+                    )
+                    / CAST(3600 AS FLOAT)
+                , 2)
             ) as hours
         FROM entry
         LEFT JOIN entry_details ON entry_details.entry_id = entry.id
-        WHERE start_time > STRFTIME('%s', ?, 'utc') and (end_time < STRFTIME('%s', ?, 'utc', '1 day') or end_time is null)
+        WHERE
+            start_time > STRFTIME('%s', ?, 'utc')
+            and (
+                end_time < STRFTIME('%s', ?, 'utc', '1 day')
+                or end_time is null
+            )
         AND sheet = 'default'
         GROUP BY billable
         ORDER BY billable
@@ -765,17 +840,23 @@ YYYY-MM-DD.')
         SELECT
             project,
             SUM(
-                ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2)
+                ROUND(
+                    (COALESCE(end_time, strftime('%s', 'now')) - start_time)
+                    / CAST(3600 AS FLOAT), 2)
             ) as hours
         FROM entry_details
         INNER JOIN entry ON entry_details.entry_id = entry.id
         LEFT JOIN ticket_details ON
             ticket_details.number = entry_details.ticket_number
-        WHERE start_time > STRFTIME('%s', ?, 'utc') and (end_time < STRFTIME('%s', ?, 'utc', '1 day') OR end_time is null)
+        WHERE start_time > STRFTIME('%s', ?, 'utc')
+            and (
+                end_time < STRFTIME('%s', ?, 'utc', '1 day')
+                OR end_time is null
+            )
         AND sheet = 'default'
         GROUP BY project
         ORDER BY hours DESC
-        """, 
+        """,
             (start_date, end_date)
             )
     rows = db.fetchall()
@@ -793,18 +874,24 @@ YYYY-MM-DD.')
             details,
             number,
             SUM(
-                ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2)
+                ROUND(
+                    (COALESCE(end_time, strftime('%s', 'now')) - start_time)
+                    / CAST(3600 AS FLOAT), 2)
             ) as hours
         FROM entry_details
         INNER JOIN entry ON entry_details.entry_id = entry.id
         INNER JOIN ticket_details ON
             ticket_details.number = entry_details.ticket_number
-        WHERE start_time > STRFTIME('%s', ?, 'utc') and (end_time < STRFTIME('%s', ?, 'utc', '1 day') OR end_time is null)
+        WHERE start_time > STRFTIME('%s', ?, 'utc')
+            and (
+                end_time < STRFTIME('%s', ?, 'utc', '1 day')
+                OR end_time is null
+            )
         AND sheet = 'default'
         GROUP BY details, number
         ORDER BY hours DESC
         LIMIT 10
-        """, 
+        """,
             (start_date, end_date)
             )
     rows = db.fetchall()
@@ -817,6 +904,7 @@ YYYY-MM-DD.')
                     row[1],
                     row[0]
                 )
+
 
 @command('display timesheet, by default the current one',
          aliases=('export', 'format', 'show'), read_only=True)
@@ -843,7 +931,8 @@ YYYY-MM-DD.')
                   default='plain',
                   help="Select whether to output in the normal timebook \
 style (--format=plain) or csv --format=csv")
-    parser.add_option('-i', '--show-ids', dest='show_ids', action='store_true', default=False);
+    parser.add_option('-i', '--show-ids', dest='show_ids',
+            action='store_true', default=False)
     opts, args = parser.parse_args(args=args)
 
     # grab correct sheet
@@ -855,23 +944,25 @@ style (--format=plain) or csv --format=csv")
 
     #calculate "where"
     where = ''
-    fmt = '%Y-%m-%d'
     if opts.start is not None:
         start = cmdutil.parse_date_time(opts.start)
         where += ' and start_time >= %s' % start
     else:
-        where += ' and start_time > STRFTIME(\'%s\', \'now\', \'-7 days\', \'start of day\', \'utc\')'
+        where += ''' and start_time >
+            STRFTIME(\'%s\', \'now\', \'-7 days\', \'start of day\', \'utc\')
+        '''
     if opts.end is not None:
         end = cmdutil.parse_date_time(opts.end)
         where += ' and end_time <= %s' % end
     if opts.format == 'plain':
-        format_timebook(db, sheet, where, show_ids = opts.show_ids)
+        format_timebook(db, sheet, where, show_ids=opts.show_ids)
     elif opts.format == 'csv':
-        format_csv(db, sheet, where, show_ids = opts.show_ids)
+        format_csv(db, sheet, where, show_ids=opts.show_ids)
     else:
-        raise SystemExit, 'Invalid format: %s' % opts.format
+        raise SystemExit('Invalid format: %s' % opts.format)
 
-def format_csv(db, sheet, where, show_ids = False):
+
+def format_csv(db, sheet, where, show_ids=False):
     import csv
 
     writer = csv.writer(sys.stdout)
@@ -897,12 +988,12 @@ def format_csv(db, sheet, where, show_ids = False):
         writer.writerows(
             map(
                 lambda row: (
-                    format(row[0]), 
-                    format(row[1]), 
-                    row[2], 
-                    row[3], 
+                    format(row[0]),
+                    format(row[1]),
+                    row[2],
+                    row[3],
                     row[4]
-                ), 
+                ),
                 rows
             )
         )
@@ -910,18 +1001,19 @@ def format_csv(db, sheet, where, show_ids = False):
         writer.writerows(
             map(
                 lambda row: (
-                    format(row[0]), 
-                    format(row[1]), 
-                    row[2], 
+                    format(row[0]),
+                    format(row[1]),
+                    row[2],
                     row[3]
-                ), 
+                ),
                 rows
             )
         )
     total_formula = '=SUM(C2:C%d)/3600' % (len(rows) + 1)
     writer.writerow(('Total', '', total_formula, ''))
 
-def format_timebook(db, sheet, where, show_ids = False):
+
+def format_timebook(db, sheet, where, show_ids=False):
     db.execute(u'''
     select count(*) > 0 from entry where sheet = ?%s
     ''' % where, (sheet,))
@@ -990,11 +1082,6 @@ def format_timebook(db, sheet, where, show_ids = False):
             else:
                 table.append(['', trange, diff, description, ''])
         else:
-            if last_day is not None:
-                # Use day_total set (below) from the previous
-                # iteration. This is skipped the first iteration,
-                # since last_day is None.
-                table.append(['', '', displ_total(day_total), '', ''])
             cur_day, day_total = days_iter.next()
             assert day == cur_day
             if(show_ids):

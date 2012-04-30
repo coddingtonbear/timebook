@@ -21,7 +21,12 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+import datetime
 import re
+import time
+
+from timebook.chiliproject import ChiliprojectConnector
+
 
 def get_current_sheet(db):
     db.execute(u'''
@@ -34,6 +39,7 @@ def get_current_sheet(db):
     ''')
     return db.fetchone()[0]
 
+
 def get_sheet_names(db):
     db.execute(u'''
     select
@@ -42,6 +48,7 @@ def get_sheet_names(db):
         entry
     ''')
     return tuple(r[0] for r in db.fetchall())
+
 
 def get_active_info(db, sheet):
     db.execute(u'''
@@ -55,6 +62,7 @@ def get_active_info(db, sheet):
         entry.end_time is null
     ''', (sheet,))
     return db.fetchone()
+
 
 def get_current_active_info(db):
     db.execute(u'''
@@ -73,6 +81,7 @@ def get_current_active_info(db):
     ''')
     return db.fetchone()
 
+
 def get_current_start_time(db):
     db.execute(u'''
     select
@@ -90,6 +99,7 @@ def get_current_start_time(db):
     ''')
     return db.fetchone()
 
+
 def get_entry_count(db, sheet):
     db.execute(u'''
     select
@@ -100,6 +110,7 @@ def get_entry_count(db, sheet):
         sheet = ?
     ''', (sheet,))
     return db.fetchone()[0]
+
 
 def get_most_recent_clockout(db, sheet):
     db.execute(u'''
@@ -113,6 +124,7 @@ def get_most_recent_clockout(db, sheet):
         -end_time
     ''', (sheet,))
     return db.fetchone()
+
 
 def date_is_vacation(db, year, month, day):
     db.execute(u'''
@@ -128,6 +140,7 @@ def date_is_vacation(db, year, month, day):
         return True
     return False
 
+
 def date_is_holiday(db, year, month, day):
     db.execute(u'''
     select
@@ -141,6 +154,7 @@ def date_is_holiday(db, year, month, day):
     if db.fetchone()[0] > 0:
         return True
     return False
+
 
 def date_is_unpaid(db, year, month, day):
     db.execute(u'''
@@ -156,6 +170,7 @@ def date_is_unpaid(db, year, month, day):
         return True
     return False
 
+
 def date_is_untracked(db, year, month, day):
     untracked_checks = [
             date_is_vacation,
@@ -167,8 +182,11 @@ def date_is_untracked(db, year, month, day):
             return True
     return False
 
+
 class TimesheetRow(object):
-    TICKET_MATCHER = re.compile(r"^(?:(\d{4,6})(?:[^0-9]|$)+|.*#(\d{4,6})(?:[^0-9]|$)+)")
+    TICKET_MATCHER = re.compile(
+            r"^(?:(\d{4,6})(?:[^0-9]|$)+|.*#(\d{4,6})(?:[^0-9]|$)+)"
+        )
     TICKET_URL = "http://chili.parthenonsoftware.com/issues/%s/"
 
     def __init__(self):
@@ -197,7 +215,9 @@ class TimesheetRow(object):
     def chili_detail(self):
         if self.lookup_handler:
             if self.ticket_number:
-                return self.lookup_handler.get_description_for_ticket(self.ticket_number)
+                return self.lookup_handler.get_description_for_ticket(
+                        self.ticket_number
+                    )
 
     @property
     def start_time(self):
@@ -234,7 +254,11 @@ class TimesheetRow(object):
     def is_billable(self):
         if self.description:
             ticket_match = re.match(r"^(\d{4,6})$", self.description)
-            force_billable_search = re.search(r"\(Billable\)", self.description, re.IGNORECASE)
+            force_billable_search = re.search(
+                    r"\(Billable\)",
+                    self.description,
+                    re.IGNORECASE
+                )
             if ticket_match:
                 return True
             if force_billable_search:
@@ -247,7 +271,9 @@ class TimesheetRow(object):
 
     @property
     def end_time_or_now(self):
-        return datetime.datetime.fromtimestamp(float(self.end_time_epoch_or_now))
+        return datetime.datetime.fromtimestamp(
+                float(self.end_time_epoch_or_now)
+            )
 
     @property
     def end_time_epoch_or_now(self):
@@ -266,11 +292,14 @@ class TimesheetRow(object):
                     self.end_time_or_now,
                     self.description if not self.ticket_number else "%s%s" % (
                             self.ticket_number,
-                            " (" + self.chili_detail + ")" if self.chili_detail else ""
+                            " (" + self.chili_detail + ")"
+                            if self.chili_detail else ""
                         ),
                 )
 
 CHILIPROJECT_LOOKUP = None
+
+
 def timesheet_row_factory(cursor, row):
     global CHILIPROJECT_LOOKUP
     if not CHILIPROJECT_LOOKUP:
@@ -279,8 +308,9 @@ def timesheet_row_factory(cursor, row):
     ts.set_lookup_handler(CHILIPROJECT_LOOKUP)
     return ts
 
+
 def dict_factory(cursor, row):
     d = {}
-    for idx,col in enumerate(cursor.description):
+    for idx, col in enumerate(cursor.description):
         d[col[0]] = row[idx]
     return d

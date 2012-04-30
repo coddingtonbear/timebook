@@ -23,6 +23,7 @@
 
 import sqlite3
 
+
 class Database(object):
     def __init__(self, path, config):
         self.config = config
@@ -54,18 +55,18 @@ class Database(object):
             billable integer default 0
         );
         CREATE TABLE if not exists holidays (
-            year integer default null, 
-            month integer, 
+            year integer default null,
+            month integer,
             day integer
         );
         CREATE TABLE if not exists unpaid (
-            year integer default null, 
-            month integer, 
+            year integer default null,
+            month integer,
             day integer
         );
         CREATE TABLE if not exists vacation (
-            year integer default null, 
-            month integer, 
+            year integer default null,
+            month integer,
             day integer
         );
         CREATE TABLE if not exists ticket_details (
@@ -89,7 +90,7 @@ class Database(object):
         if count == 0:
             self.execute(u'''
             insert into meta (
-                key, value 
+                key, value
             ) values (
                 'current_sheet', 'default'
             )''')

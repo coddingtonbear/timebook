@@ -24,13 +24,16 @@
 from ConfigParser import SafeConfigParser
 import os
 
+
 class ConfigParser(SafeConfigParser):
     def __getitem__(self, name):
         return dict(self.items(name))
+
     def get_with_default(self, section, name, default):
         if self.has_option(section, name):
             return self.get(section, name)
         return default
+
 
 def subdirs(path):
     path = os.path.abspath(path)
@@ -40,6 +43,7 @@ def subdirs(path):
             break
         yield path[:last + 1]
         last = path.find(os.path.sep, last + 1)
+
 
 def parse_config(filename):
     config = ConfigParser()

@@ -25,25 +25,46 @@ from dateutil import rrule
 
 
 class PayPeriodUtil(object):
-    def __init__(self, db, begin_period=None, end_period=None, weekdays_rule=None, hours_per_day=8):
+    def __init__(self, db, begin_period=None, end_period=None,
+            weekdays_rule=None, hours_per_day=8):
         self.db = db
         self.begin_period = begin_period
         self.end_period = end_period
         self.weekdays_rule = weekdays_rule
         self.hours_per_day = hours_per_day
         if not self.begin_period:
-            self.begin_period = datetime.now() - relativedelta.relativedelta(day = 31, months=1, hour=0, minute=0, second=0, weekday=rrule.FR(-2)) + timedelta(days = 1)
+            self.begin_period = datetime.now() - relativedelta.relativedelta(
+                    day=31, months=1, hour=0, minute=0,
+                    second=0, weekday=rrule.FR(-2)
+                ) + timedelta(days=1)
         if not self.end_period:
             self.end_period = datetime.now()
-            self.real_end_period = datetime.now() + relativedelta.relativedelta(day = 31, weekday=rrule.FR(-2))
+            self.real_end_period = datetime.now(
+                    ) + relativedelta.relativedelta(
+                            day=31, weekday=rrule.FR(-2)
+                        )
         if(self.end_period > self.real_end_period):
-            self.begin_period = datetime.now() - relativedelta.relativedelta(day = 31, months = 0, hour = 0, minute = 0, second = 0, weekday = rrule.FR(-2)) + timedelta(days = 1)
-            self.real_end_period = datetime.now() + relativedelta.relativedelta(day = 31, months = 1, weekday = rrule.FR(-2))
+            self.begin_period = datetime.now(
+                    ) - relativedelta.relativedelta(
+                            day=31, months=0, hour=0, minute=0,
+                            second=0, weekday=rrule.FR(-2)
+                        ) + timedelta(days=1)
+            self.real_end_period = datetime.now(
+                    ) + relativedelta.relativedelta(
+                            day=31, months=1, weekday=rrule.FR(-2)
+                        )
         if not self.weekdays_rule:
-            self.weekdays_rule = rrule.rrule(rrule.DAILY, byweekday=(rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR, ), dtstart=self.begin_period)
+            self.weekdays_rule = rrule.rrule(
+                    rrule.DAILY, byweekday=(
+                        rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR,
+                    ), dtstart=self.begin_period
+                )
 
     def get_hours_details(self):
-        all_weekdays = self.weekdays_rule.between(self.begin_period, self.end_period)
+        all_weekdays = self.weekdays_rule.between(
+                self.begin_period,
+                self.end_period
+            )
         expected_hours = self.hours_per_day * len(all_weekdays)
         unpaid = 0
         vacation = 0
@@ -59,9 +80,14 @@ class PayPeriodUtil(object):
             elif(self.is_vacation(day)):
                 expected_hours = expected_hours - self.hours_per_day
                 vacation = vacation + self.hours_per_day
-        total_hours = self.count_hours_after(self.begin_period, self.end_period)
+        total_hours = self.count_hours_after(
+                self.begin_period,
+                self.end_period
+            )
 
-        out_time = datetime.now() + timedelta(hours = (expected_hours - total_hours))
+        out_time = datetime.now() + timedelta(
+                hours=(expected_hours - total_hours)
+            )
 
         return {
                     'expected': expected_hours,

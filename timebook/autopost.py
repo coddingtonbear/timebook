@@ -18,7 +18,6 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-import os.path
 import getpass
 import ConfigParser
 import urllib
@@ -27,18 +26,19 @@ import urllib2
 from timebook.chiliproject import ChiliprojectConnector
 from timebook.dbutil import TimesheetRow
 
+
 class TimesheetPoster(object):
     _config_section = 'timesheet_poster'
 
-    def __init__(self, db, date, fake = False):
+    def __init__(self, db, date, fake=False):
         self.timesheet_url = db.config.get_with_default(
-                self._config_section, 
+                self._config_section,
                 'timesheet_url',
                 'http://www.parthenonsoftware.com/timesheet/timesheet.php'
                 )
         self.login_url = db.config.get_with_default(
-                self._config_section, 
-                'login_url', 
+                self._config_section,
+                'login_url',
                 'http://www.parthenonsoftware.com/timesheet/index.php'
                 )
         self.date = date
@@ -48,11 +48,11 @@ class TimesheetPoster(object):
     def get_config(self, section, option):
         try:
             return self.db.config.get(section, option)
-        except (ConfigParser.NoSectionError, ConfigParser.NoOptionError), e:
+        except (ConfigParser.NoSectionError, ConfigParser.NoOptionError) as e:
             if(option.upper().find("pass") or option[0:1] == "_"):
                 return getpass.getpass("%s: " % option.capitalize())
             else:
-                return raw_input("%s: " % option.capitalize())    
+                return raw_input("%s: " % option.capitalize())
 
     def main(self):
         print "Posting hours for %s" % self.date
@@ -63,7 +63,12 @@ class TimesheetPoster(object):
         for entry in entries:
             print entry
         opener = self.login(self.login_url, self.username, self.password)
-        result = self.post_entries(opener, self.timesheet_url, self.date, entries)
+        result = self.post_entries(
+                opener,
+                self.timesheet_url,
+                self.date,
+                entries
+                )
         return result
 
     def post_entries(self, opener, url, date, entries):
@@ -76,7 +81,12 @@ class TimesheetPoster(object):
             data.append(('startmin[]', entry.start_time.strftime('%M')))
             data.append(('endhour[]', entry.end_time_or_now.strftime('%H')))
             data.append(('endmin[]', entry.end_time_or_now.strftime('%M')))
-            data.append(('mantisid[]', entry.ticket_number if entry.ticket_number else ''))
+            data.append(
+                    (
+                        'mantisid[]',
+                        entry.ticket_number if entry.ticket_number else ''
+                    )
+                )
             data.append(('description[]', entry.timesheet_description))
             data.append(('debug[]', '1' if not entry.is_billable else '0'))
             self.db.execute("""
@@ -89,7 +99,12 @@ class TimesheetPoster(object):
 
         data_encoded = urllib.urlencode(data)
         if not self.fake:
-            r = opener.open("%s?date=%s" % (url, date.strftime("%Y-%m-%d")), data_encoded)
+            r = opener.open(
+                    "%s?date=%s" % (
+                        url,
+                        date.strftime("%Y-%m-%d")
+                    ), data_encoded
+                )
             return r
         return False
 
@@ -100,7 +115,13 @@ class TimesheetPoster(object):
                 start_time,
                 COALESCE(end_time, STRFTIME('%s', 'now')) as end_time,
                 description,
-                ROUND((COALESCE(end_time, strftime('%s', 'now')) - start_time) / CAST(3600 AS FLOAT), 2) AS hours
+                ROUND(
+                        (
+                            COALESCE(end_time, strftime('%s', 'now'))
+                            - start_time
+                        )
+                        / CAST(3600 AS FLOAT), 2
+                    ) AS hours
             FROM
                 entry
             WHERE
@@ -113,8 +134,9 @@ class TimesheetPoster(object):
         results = self.db.fetchall()
 
         helper = ChiliprojectConnector(
-                    username = self.username,
-                    password = self.password
+                    self.db,
+                    username=self.username,
+                    password=self.password
                 )
 
         final_results = []
@@ -139,4 +161,3 @@ class TimesheetPoster(object):
 
     def __exit__(self, *args, **kwargs):
         return True
-

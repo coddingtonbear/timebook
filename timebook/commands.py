@@ -115,10 +115,31 @@ def command(desc, name=None, aliases=(), locking=True, read_only=True):
     return decorator
 
 
-def run_command(db, cmd, args):
+def get_command_by_user_configured_alias(db, cmd):
+    if (
+        not db.config.has_section('aliases') 
+        or not db.config.has_option('aliases', cmd)
+        ):
+        return
+    alias = db.config.get('aliases', cmd)
+    if alias in commands.keys():
+        return alias
+    else:
+        raise exceptions.CommandError("The alias '%s' is mapped to a function that does not exist." % cmd)
+
+
+def get_command_by_name(db, cmd):
+    func = get_command_by_user_configured_alias(db, cmd)
+    if func:
+        return func
     func = cmd_aliases.get(cmd, None)
-    if func is None:
-        func = cmdutil.complete(commands, cmd, 'command')
+    if func:
+        return func
+    return cmdutil.complete(commands, cmd, 'command')
+
+
+def run_command(db, cmd, args):
+    func = get_command_by_name(db, cmd)
     try:
         if commands[func].locking:
             db.execute(u'begin')

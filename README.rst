@@ -145,6 +145,25 @@ you run ``t out``, you can enter a configuration key like the following::
   post_on_clockout = True
 
 
+Command Aliases
+---------------
+
+You will quickly notice that there are rather a lot of commands and that the
+connection between the command name and its action may be entirely unclear 
+to you; in order to allow one to use the system in a way that suits their cognitive
+processes best, you are able to specify aliases for any command.
+
+For example, if you would prefer to use the command ``to`` instead of ``change``
+when changing tasks , you can create aliases in an
+``aliases`` section in your Timebook configuration.::
+
+  [aliases]
+  to = change
+
+You can also override built-in commands; so if you rarely use the built-in ``switch``
+command and would rather have it behave as ``change`` already does, you can, of course,
+do that, too.
+
 
 Commands
 ~~~~~~~~

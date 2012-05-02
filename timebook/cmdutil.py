@@ -74,6 +74,29 @@ matches = [(re.compile(r'^\d+:\d+$'), today_str + " ", ":00"),
 fmt = "%Y-%m-%d %H:%M:%S"
 
 
+def _rawinput_date_format(message, fmt, default):
+    try:
+        result = raw_input("%s (%s):\t" % (
+                message,
+                "\"%s\"" % default.strftime(fmt) if default else 'None'
+            ))
+        if not result:
+            return default
+        return datetime.datetime.strptime(
+                    result,
+                    fmt
+                )
+    except ValueError:
+        return False
+
+
+def rawinput_date_format(message, fmt, default):
+    while True:
+        result = _rawinput_date_format(message, fmt, default)
+        if result != False:
+            return result
+
+
 def parse_date_time(dt_str):
     for (patt, prepend, postpend) in matches:
         if patt.match(dt_str):

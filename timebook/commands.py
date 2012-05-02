@@ -39,6 +39,7 @@ from urlparse import urlparse
 from timebook import logger, dbutil, cmdutil, exceptions
 from timebook.autopost import TimesheetPoster
 from timebook.payperiodutil import PayPeriodUtil
+from timebook.cmdutil import rawinput_date_format
 
 commands = {}
 cmd_aliases = {}
@@ -655,42 +656,42 @@ of you'd like to modify.")
     except TypeError:
         end = None
 
-    new_start = raw_input("Start Time (\"%s\"):\t" % (
-            start.strftime("%H:%M")
-        ))
-    if(new_start):
-        dt_newstart = datetime.strptime(
-                    new_start,
+    new_start_date = rawinput_date_format(
+                "Start Date",
+                "%Y-%m-%d",
+                start,
+            )
+    new_start_time = rawinput_date_format(
+                "Start Time",
+                "%H:%M",
+                start
+            )
+    start = datetime(
+                new_start_date.year,
+                new_start_date.month,
+                new_start_date.day,
+                new_start_time.hour,
+                new_start_time.minute,
+            )
+    new_end_date = rawinput_date_format(
+                "End Date",
+                "%Y-%m-%d",
+                end,
+            )
+    if new_end_date:
+        new_end_time = rawinput_date_format(
+                    "End Time",
                     "%H:%M",
+                    end,
                 )
-        dt_newstart = datetime(
-                    start.year,
-                    start.month,
-                    start.day,
-                    dt_newstart.hour,
-                    dt_newstart.minute,
-                    0,
-                )
-    else:
-        dt_newstart = start
-    new_end = raw_input("End time (\"%s\"):\t" % (
-            end.strftime("%H:%M") if end else None
-        ))
-    if(new_end):
-        dt_newend = datetime.strptime(
-                    new_end,
-                    "%H:%M",
-                )
-        dt_newend = datetime(
-                    end.year if end else start.year,
-                    end.month if end else start.month,
-                    end.day if end else start.day,
-                    dt_newend.hour,
-                    dt_newend.minute,
-                    0,
-                )
-    else:
-        dt_newend = end
+        if new_end_date and new_end_time:
+            end = datetime(
+                        new_end_date.year,
+                        new_end_date.month,
+                        new_end_date.day,
+                        new_end_time.hour,
+                        new_end_time.minute,
+                    )
     description = raw_input("Description (\"%s\"):\t" % (
             row[2]
         ))
@@ -702,8 +703,8 @@ of you'd like to modify.")
         SET start_time = ?, end_time = ?, description = ? WHERE id = ?
         """
     args = (
-            int(time.mktime(dt_newstart.timetuple())),
-            int(time.mktime(dt_newend.timetuple())) if dt_newend else None,
+            int(time.mktime(start.timetuple())),
+            int(time.mktime(end.timetuple())) if end else None,
             description,
             id
         )

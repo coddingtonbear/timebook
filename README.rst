@@ -112,7 +112,7 @@ A web interface for viewing timebook information is available in the project
 ``timebook_web``; head over to http://bitbucket.org/latestrevision/timebook_web/
 for details.
 
-configuration
+Configuration
 ~~~~~~~~~~~~~
 
 A configuration file lives in ``~/.config/timebook/timebook.ini`` that you can 

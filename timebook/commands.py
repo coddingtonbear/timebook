@@ -642,7 +642,7 @@ Please use the date format \"YYYY-MM-DD HH:MM\""
 @command('change details about a specific entry in the timesheet')
 def modify(db, args):
     if len(args) < 1:
-        raise Exception("You must select the ID number of an entry \
+        raise exceptions.CommandError("You must select the ID number of an entry \
 of you'd like to modify.")
     id = args[0]
     db.execute(u"""
@@ -650,6 +650,8 @@ of you'd like to modify.")
         FROM entry WHERE id = ?
     """, (id, ))
     row = db.fetchone()
+    if not row:
+        raise exceptions.CommandError("The ID you specified does not exist.")
     start = datetime.fromtimestamp(row[0])
     try:
         end = datetime.fromtimestamp(row[1])

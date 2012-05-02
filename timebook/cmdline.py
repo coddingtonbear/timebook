@@ -29,6 +29,7 @@ from timebook.db import Database
 from timebook.commands import commands, run_command
 from timebook.config import parse_config
 from timebook.cmdutil import AmbiguousLookup, NoMatch
+from timebook.exceptions import CommandError
 
 from timebook import CONFIG_FILE, TIMESHEET_DB
 
@@ -83,7 +84,9 @@ def run_from_cmdline():
     cmd, args = args[0], args[1:]
     try:
         run_command(db, cmd, args)
-    except NoMatch, e:
+    except NoMatch as e:
         parser.error('%s' % e.args[0])
-    except AmbiguousLookup, e:
+    except AmbiguousLookup as e:
         parser.error('%s\n    %s' % (e.args[0], ' '.join(e.args[1])))
+    except CommandError as e:
+        parser.error("%s" % e)

@@ -36,3 +36,7 @@ class PreHookException(Exception):
 
 class PostHookException(Exception):
     pass
+
+
+class CommandError(Exception):
+    pass

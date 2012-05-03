@@ -23,6 +23,8 @@
 
 import sqlite3
 
+from timebook.migrations import MigrationManager
+
 
 class Database(object):
     def __init__(self, path, config):
@@ -34,65 +36,16 @@ class Database(object):
             setattr(self, attr, getattr(cursor, attr))
         self._initialize_db()
 
+    @property
+    def db_version(self):
+        try:
+            self.execute('''
+                SELECT value FROM meta WHERE key = 'db_version'
+            ''')
+            return int(self.fetchone()[0])
+        except:
+            return 0
+
     def _initialize_db(self):
-        self.executescript(u'''
-        begin;
-        create table if not exists meta (
-            key varchar(16) primary key not null,
-            value varchar(32) not null
-        );
-        create table if not exists entry (
-            id integer primary key not null,
-            sheet varchar(32) not null,
-            start_time integer not null,
-            end_time integer,
-            description varchar(64),
-            extra blob
-        );
-        create table if not exists entry_details (
-            entry_id integer primary key not null,
-            ticket_number integer default null,
-            billable integer default 0
-        );
-        CREATE TABLE if not exists holidays (
-            year integer default null,
-            month integer,
-            day integer
-        );
-        CREATE TABLE if not exists unpaid (
-            year integer default null,
-            month integer,
-            day integer
-        );
-        CREATE TABLE if not exists vacation (
-            year integer default null,
-            month integer,
-            day integer
-        );
-        CREATE TABLE if not exists ticket_details (
-            number integer,
-            project string,
-            details string
-        );
-        create index if not exists entry_sheet on entry (sheet);
-        create index if not exists entry_start_time on entry (start_time);
-        create index if not exists entry_end_time on entry (end_time);
-        ''')
-        self.execute(u'''
-        select
-            count(*)
-        from
-            meta
-        where
-            key = 'current_sheet'
-        ''')
-        count = self.fetchone()[0]
-        if count == 0:
-            self.execute(u'''
-            insert into meta (
-                key, value
-            ) values (
-                'current_sheet', 'default'
-            )''')
-        # TODO: version
-        self.execute(u'commit')
+        manager = MigrationManager(self)
+        manager.upgrade()

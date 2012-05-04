@@ -1154,23 +1154,23 @@ def format_timebook(db, sheet, where, show_ids=False):
                     + [''] * extra_count
                 )
                 table.append(['', '', '', ''] + [''] * extra_count)
-            cur_day, day_total = days_iter.next()
             row = [date]
-            row.extend([
-                    trange, diff, description
-                ])
-            ticket_metadata = dbutil.get_entry_meta(db, id)
-            for meta in metadata_keys:
-                key = meta[0]
-                row.append(
-                            ticket_metadata[key] if (
-                                    key in ticket_metadata.keys()
-                                ) else ''
-                        )
-            if show_ids:
-                row.append(id)
-            table.append(row)
-            last_day = day
+            cur_day, day_total = days_iter.next()
+        row.extend([
+                trange, diff, description
+            ])
+        ticket_metadata = dbutil.get_entry_meta(db, id)
+        for meta in metadata_keys:
+            key = meta[0]
+            row.append(
+                        ticket_metadata[key] if (
+                                key in ticket_metadata.keys()
+                            ) else ''
+                    )
+        if show_ids:
+            row.append(id)
+        table.append(row)
+        last_day = day
 
     db.execute(u'''
     select

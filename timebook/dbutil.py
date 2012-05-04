@@ -115,7 +115,7 @@ def get_entry_count(db, sheet):
 def get_most_recent_clockout(db, sheet):
     db.execute(u'''
     select
-        end_time, description
+        id, start_time, end_time, description
     from
         entry
     where
@@ -124,6 +124,25 @@ def get_most_recent_clockout(db, sheet):
         -end_time
     ''', (sheet,))
     return db.fetchone()
+
+
+def get_entry_meta(db, id):
+    meta = {}
+    db.execute(u'''
+    select
+        key, value
+    from 
+        entry_meta
+    where
+        entry_id = ?
+    order by
+        key
+    ''', (id, ))
+    for row in db.fetchall():
+        key = row[0]
+        value = row[1]
+        meta[key] = value
+    return meta
 
 
 def date_is_vacation(db, year, month, day):

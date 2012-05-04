@@ -312,17 +312,31 @@ Start the timer for the current timesheet. Must be called before out.
 Notes may be specified for this period. This is exactly equivalent to
 %prog in; %prog alter''')
     parser.add_option('-s', '--switch', dest='switch', type='string',
-                      help='Switch to another timesheet before \
-starting the timer.')
+            help='Switch to another timesheet before starting the timer.'
+            )
     parser.add_option('-o', '--out', dest='out', action='store_true',
-                      default=False, help='''Clocks out before clocking \
-in''')
+            default=False, help='Clocks out before clocking in'
+            )
     parser.add_option('-a', '--at', dest='at', type='string',
-                      help='''Set time of clock-in''')
+            help='Set time of clock-in'
+            )
     parser.add_option('-r', '--resume', dest='resume', action='store_true',
-                      default=False, help='''Clocks in with status of \
-last active period''')
+            default=False, help='Clocks in with status of last active period'
+            )
+    parser.add_option('-t', '--ticket', dest='ticket_number', type='string',
+            default=None, help='Set ticket number'
+            )
+    parser.add_option('--billable', dest='billable', action='store_true',
+            default=True, help='Marks entry as billable'
+            )
+    parser.add_option('--non-billable', dest='billable', action='store_false',
+            default=True, help='Marks entry as non-billable'
+            )
     opts, args = parser.parse_args(args=args)
+    metadata = {}
+    metadata['billable'] = 'yes' if opts.billable else 'no'
+    if opts.ticket_number:
+        metadata['ticket_number'] = opts.ticket_number
     if opts.switch:
         sheet = opts.switch
         switch(db, [sheet])
@@ -340,7 +354,7 @@ with arguments.')
     most_recent_clockout = dbutil.get_most_recent_clockout(db, sheet)
     description = u' '.join(args) or None
     if most_recent_clockout:
-        (previous_timestamp, previous_description) = most_recent_clockout
+        (id, start_time, previous_timestamp, previous_description) = most_recent_clockout
         if timestamp < previous_timestamp:
             raise SystemExit('error: time periods could end up overlapping')
         if opts.resume:
@@ -350,6 +364,13 @@ with arguments.')
         sheet, start_time, description, extra
     ) values (?,?,?,?)
     ''', (sheet, timestamp, description, extra))
+    entry_id = db.cursor.lastrowid
+    for key, value in metadata.items():
+        db.execute(u'''
+        insert into entry_meta (
+            entry_id, key, value
+        ) values (?, ?, ?)
+        ''', (entry_id, key, value))
 
 
 @command('delete a timesheet', aliases=('delete',))
@@ -1052,10 +1073,7 @@ def format_timebook(db, sheet, where, show_ids=False):
             cmdutil.timedelta_hms_display(timedelta(seconds=t))
 
     last_day = None
-    if(show_ids):
-        table = [['Day', 'Start      End', 'Duration', 'ID', 'Notes']]
-    else:
-        table = [['Day', 'Start      End', 'Duration', 'Notes', '']]
+    day_total = None
     db.execute(u'''
     select
         date(e.start_time, 'unixepoch', 'localtime') as day,
@@ -1089,6 +1107,34 @@ def format_timebook(db, sheet, where, show_ids=False):
         day asc;
     ''' % where, (sheet,))
     entries = db.fetchall()
+
+    # Get list of total metadata keys
+    db.execute(u'''
+    select
+        distinct key, count(entry_id)
+    from entry_meta
+    inner join entry
+        on entry.id = entry_meta.entry_id
+    where
+        entry.sheet = ?
+        %s
+    group by key
+    order by count(entry_id) desc
+    ''' % where, (sheet, ))
+    metadata_keys = db.fetchall()
+    extra_count = len(metadata_keys)
+    if show_ids:
+        extra_count = extra_count + 1 
+
+    table = []
+    table_header = ['Day', 'Start      End', 'Duration', 'Notes']
+    for key in metadata_keys:
+        table_header.append(
+                    key[0].title().replace('_', ' ')
+                )
+    if show_ids:
+        table_header.append('ID')
+    table.append(table_header)
     for i, (day, start, end, duration, description, id) in \
             enumerate(entries):
         id = str(id)
@@ -1101,17 +1147,29 @@ def format_timebook(db, sheet, where, show_ids=False):
         if last_day == day:
             # If this row doesn't represent the first entry of the
             # day, don't display anything in the day column.
-            if(show_ids):
-                table.append(['', trange, diff, id, description])
-            else:
-                table.append(['', trange, diff, description, ''])
+            row = ['']
         else:
+            if day_total:
+                table.append(['', '', displ_total(day_total), '']
+                    + [''] * extra_count
+                )
+                table.append(['', '', '', ''] + [''] * extra_count)
             cur_day, day_total = days_iter.next()
-            assert day == cur_day
-            if(show_ids):
-                table.append([date, trange, diff, id, description])
-            else:
-                table.append([date, trange, diff, description, ''])
+            row = [date]
+            row.extend([
+                    trange, diff, description
+                ])
+            ticket_metadata = dbutil.get_entry_meta(db, id)
+            for meta in metadata_keys:
+                key = meta[0]
+                row.append(
+                            ticket_metadata[key] if (
+                                    key in ticket_metadata.keys()
+                                ) else ''
+                        )
+            if show_ids:
+                row.append(id)
+            table.append(row)
             last_day = day
 
     db.execute(u'''
@@ -1124,6 +1182,6 @@ def format_timebook(db, sheet, where, show_ids=False):
         e.sheet = ?%s;
     ''' % where, (sheet,))
     total = displ_total(db.fetchone()[0])
-    table += [['', '', displ_total(day_total), '', ''],
-              ['Total', '', total, '', '']]
+    table += [['', '', displ_total(day_total), ''] + [''] * extra_count,
+              ['Total', '', total, '',] + [''] * extra_count]
     cmdutil.pprint_table(table, footer_row=True)

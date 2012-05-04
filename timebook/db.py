@@ -31,9 +31,9 @@ class Database(object):
         self.config = config
         self.path = path
         self.connection = sqlite3.connect(path, isolation_level=None)
-        cursor = self.connection.cursor()
+        self.cursor = self.connection.cursor()
         for attr in ('execute', 'executescript', 'fetchone', 'fetchall'):
-            setattr(self, attr, getattr(cursor, attr))
+            setattr(self, attr, getattr(self.cursor, attr))
         self._initialize_db()
 
     @property

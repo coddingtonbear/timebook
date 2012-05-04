@@ -117,3 +117,13 @@ def timedelta_hms_display(timedelta):
     minutes = timedelta.seconds / 60 % 60
     seconds = timedelta.seconds % 60
     return '%02d:%02d:%02d' % (hours, minutes, seconds)
+
+
+def build_ticketmeta_parser(db, parser):
+    options = {
+                'ticket': 'string',
+                'billable': 'boolean'
+            }
+    parser.add_option('-t', '--ticket', dest='ticket', type='string',
+            help='Sets ticket number (if available)'
+            )

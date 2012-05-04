@@ -1153,7 +1153,6 @@ def format_timebook(db, sheet, where, show_ids=False):
                 table.append(['', '', displ_total(day_total), '']
                     + [''] * extra_count
                 )
-                table.append(['', '', '', ''] + [''] * extra_count)
             row = [date]
             cur_day, day_total = days_iter.next()
         row.extend([

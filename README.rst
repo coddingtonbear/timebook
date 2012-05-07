@@ -83,13 +83,13 @@ of starting a new one)::
 
 The above command will enter 'Working on my falafel recipe' into your timesheet,
 set the entry's ticket number to '1038' and mark the task as billable (the default).
-But, what if you want your ticket to be marked as non-billable?::
+But, what if you want your ticket to be marked as non-billable? ::
 
   $ t in --ticket=1038 --non-billable "Working on my falafel recipe"
 
 Additionally, you can modify previous entries' ticket number and billable status
 (as well as any custom attributes) by using the ``alter`` command, optionally
-providing the ID number of an entry of which you'd like to change the properties.::
+providing the ID number of an entry of which you'd like to change the properties. ::
 
   $ t alter --id=208 --ticket=2408
 
@@ -172,7 +172,7 @@ processes best, you are able to specify aliases for any command.
 
 For example, if you would prefer to use the command ``to`` instead of ``change``
 when changing tasks , you can create aliases in an
-``aliases`` section in your Timebook configuration.::
+``aliases`` section in your Timebook configuration. ::
 
   [aliases]
   to=change

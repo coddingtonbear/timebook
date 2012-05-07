@@ -333,8 +333,9 @@ Notes may be specified for this period. This is exactly equivalent to
     parser.add_option('--non-billable', dest='billable', action='store_false',
             default=True, help='Marks entry as non-billable'
             )
+    cmdutil.add_user_specified_attributes(db, parser)
     opts, args = parser.parse_args(args=args)
-    metadata = {}
+    metadata = cmdutil.collect_user_specified_attributes(db, opts)
     metadata['billable'] = 'yes' if opts.billable else 'no'
     if opts.ticket_number:
         metadata['ticket_number'] = opts.ticket_number
@@ -366,12 +367,7 @@ with arguments.')
     ) values (?,?,?,?)
     ''', (sheet, timestamp, description, extra))
     entry_id = db.cursor.lastrowid
-    for key, value in metadata.items():
-        db.execute(u'''
-        insert into entry_meta (
-            entry_id, key, value
-        ) values (?, ?, ?)
-        ''', (entry_id, key, value))
+    dbutil.update_entry_meta(db, entry_id, metadata)
 
 
 @command('delete a timesheet', aliases=('delete',))
@@ -586,6 +582,7 @@ timesheet. For example, ``t alter Documenting timebook.``''')
     parser.add_option('--id', dest='entry_id', type='string',
             default=None, help='Entry ID number (defaults to current)'
             )
+    cmdutil.add_user_specified_attributes(db, parser)
     opts, args = parser.parse_args(args=args)
 
     if not opts.entry_id:
@@ -604,7 +601,7 @@ timesheet. For example, ``t alter Documenting timebook.``''')
         where
             entry.id = ?
         ''', (' '.join(args), entry_id))
-    meta = {}
+    meta = cmdutil.collect_user_specified_attributes(db, opts)
     if opts.billable != None:
         meta['billable'] = 'yes' if opts.billable else 'no'
     if opts.ticket_number != None:

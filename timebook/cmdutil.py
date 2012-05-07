@@ -119,11 +119,20 @@ def timedelta_hms_display(timedelta):
     return '%02d:%02d:%02d' % (hours, minutes, seconds)
 
 
-def build_ticketmeta_parser(db, parser):
-    options = {
-                'ticket': 'string',
-                'billable': 'boolean'
-            }
-    parser.add_option('-t', '--ticket', dest='ticket', type='string',
-            help='Sets ticket number (if available)'
-            )
+def collect_user_specified_attributes(db, opts):
+    meta = {}
+    if db.config.has_section('custom_ticket_meta'):
+        for key in db.config.options('custom_ticket_meta'):
+            value = getattr(opts, key)
+            if value != None:
+                meta[key] = value
+    return meta
+
+
+def add_user_specified_attributes(db, parser):
+    if db.config.has_section('custom_ticket_meta'):
+        for key in db.config.options('custom_ticket_meta'):
+            help_text=db.config.get('custom_ticket_meta', key)
+            parser.add_option('--' + key, type='string', dest=key,
+                    help=help_text, default=None
+                    )

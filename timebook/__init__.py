@@ -25,8 +25,8 @@ import logging
 import os.path
 import sys
 
-__author__ = 'Trevor Caira <trevor@caira.com>, Adam Coddington <me@adamcoddington.net>'
-__version__ = (3, 0, 0)
+__author__ = 'Adam Coddington <me@adamcoddington.net>, Trevor Caira <trevor@caira.com>'
+__version__ = (3, 5, 0)
 
 def get_version():
     return '.'.join(str(bit) for bit in __version__)

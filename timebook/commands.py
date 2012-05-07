@@ -224,7 +224,8 @@ def get_date_from_cli_string(option,  option_str, value, parser):
 # Commands
 
 
-@command("open the backend's interactive shell", aliases=('shell',))
+@command("open the backend's interactive shell", aliases=('shell',), 
+        locking=False)
 def backend(db, args):
     parser = optparse.OptionParser(usage='''usage: %prog backend
 

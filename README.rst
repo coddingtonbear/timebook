@@ -189,7 +189,9 @@ Commands
   Inserts a note associated with the currently active period in the
   timesheet.
 
-  usage: ``t alter NOTES...``
+  *Also accepts custom ticket metadata parameters.*
+
+  usage: ``t alter [--billable] [--non-billable] [--ticket=TICKETNUMBER] [--id=ID] NOTES...``
 
   aliases: *write*
 
@@ -207,7 +209,9 @@ Commands
   period. This is exactly equivalent to
   ``t out; t in NOTES``
 
-  usage: ``t change [NOTES...]``
+  *Also accepts custom ticket metadata parameters.*
+
+  usage: ``t change [--billable] [--non-billable] [--ticket=TICKETNUMBER] [NOTES...]``
 
 **details**
   Displays details regarding tickets assigned to a specified ticket number.
@@ -225,7 +229,9 @@ Commands
   Additionally allows one to display the ID#s for individual timesheet
   entries (for making modifications).
 
-  usage: ``t display [--show-ids] [TIMESHEET]``
+  *By default, shows only the last seven days of activity.*
+
+  usage: ``t display [--show-ids] [--start=YYYY-MM-DD] [--end=YYYY-MM-DD] [TIMESHEET]``
 
   aliases: *show*
 
@@ -257,7 +263,9 @@ Commands
   Notes may be specified for this period. This is exactly equivalent to
   ``t in; t alter NOTES``
 
-  usage: ``t in [--switch TIMESHEET] [NOTES...]``
+  *Also accepts custom ticket metadata parameters.*
+
+  usage: ``t in [--billable] [--non-billable] [--ticket=TICKETNUMBER] [--switch TIMESHEET] [NOTES...]``
 
   aliases: *start*
 

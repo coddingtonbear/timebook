@@ -313,9 +313,9 @@ class TestCommandFunctions(unittest.TestCase):
 
     def test_display(self):
         expected_rows = self.adjust_output_rows_for_time([
-                [u'Day            Start      End        Duration   Notes'], 
-                [u'{date}   {time} - {time}   00:00:00   some task'], 
-                [u'{time} -            00:00:00   some other task'], 
+                [u'Day            Start      End        Duration   Notes             Billable'], 
+                [u'{date}'  + '   {time} - {time} ' +'  00:00:00   some task         yes'], 
+                [u'{time} - '             + '           00:00:00   some other task   yes'], 
                 [u'00:00:00'], 
                 [u'Total                                00:00:00']
             ])

@@ -66,10 +66,6 @@ class MigrationManager(object):
         return migration_modules
 
     def _apply_migration(self, module):
-        print "Applying migration #%s (%s)" % (
-                    module['number'],
-                    module['name'],
-                )
         for migration_class in module['migrations']:
             migration = migration_class(self.db)
             migration.run()

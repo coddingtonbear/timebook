@@ -582,7 +582,7 @@ timesheet. For example, ``t alter Documenting timebook.``''')
     parser.add_option('--non-billable', dest='billable', action='store_false',
             default=None, help='Marks entry as billable'
             )
-    parser.add_option('--id', dest='entry_id', action='string',
+    parser.add_option('--id', dest='entry_id', type='string',
             default=None, help='Entry ID number (defaults to current)'
             )
     opts, args = parser.parse_args(args=args)

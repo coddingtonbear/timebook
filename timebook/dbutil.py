@@ -244,6 +244,8 @@ class TimesheetRow(object):
 
     def __init__(self):
         self.lookup_handler = False
+        self.db = False
+        self.meta = {}
 
     @staticmethod
     def from_row(row):
@@ -254,6 +256,14 @@ class TimesheetRow(object):
         t.description = row[3]
         t.hours = row[4]
         return t
+
+    def set_meta(self, meta):
+        self.meta = meta
+
+    def meta_key_has_value(self, key):
+        if key in self.meta.keys() and self.meta[key]:
+            return True
+        return False
 
     def set_lookup_handler(self, handler):
         self.lookup_handler = handler
@@ -283,12 +293,17 @@ class TimesheetRow(object):
 
     @property
     def is_ticket(self):
-        if self.description and self.ticket_number:
+        if self.meta_key_has_value('ticket_number'):
             return True
+        elif self.description and self.ticket_number:
+            return True
+        return False
 
     @property
     def ticket_number(self):
-        if self.description:
+        if self.meta_key_has_value('ticket_number'):
+            return self.meta['ticket_number']
+        elif self.description:
             matches = self.TICKET_MATCHER.match(self.description)
             if matches:
                 for match in matches.groups():
@@ -305,7 +320,9 @@ class TimesheetRow(object):
 
     @property
     def is_billable(self):
-        if self.description:
+        if self.meta_key_has_value('billable'):
+            return True if self.meta['billable'] == 'yes' else False
+        elif self.description:
             ticket_match = re.match(r"^(\d{4,6})$", self.description)
             force_billable_search = re.search(
                     r"\(Billable\)",

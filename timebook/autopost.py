@@ -24,7 +24,7 @@ import urllib
 import urllib2
 
 from timebook.chiliproject import ChiliprojectConnector
-from timebook.dbutil import TimesheetRow
+from timebook.dbutil import TimesheetRow, get_entry_meta
 
 
 class TimesheetPoster(object):
@@ -143,6 +143,9 @@ class TimesheetPoster(object):
         for result in results:
             entry = TimesheetRow.from_row(result)
             entry.set_lookup_handler(helper)
+            entry.set_meta(
+                        get_entry_meta(self.db, result[0])
+                    )
             final_results.append(entry)
         return final_results
 

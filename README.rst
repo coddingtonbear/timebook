@@ -75,25 +75,23 @@ Parthenon-Related Usage
 Annotating work-related projects can be somewhat more complicated due to having
 specific projects associated with billable or non-billable tickets, but
 timebook will help make this reasonably easy for you by allowing you to specify,
-instead of a description, a ticket number that will be used when posting your
+in addition to a description, a ticket number that will be used when posting your
 timesheet (you can change 'in' to 'change' should you be switching tasks instead
 of starting a new one)::
 
-  $ t in 9234
+  $ t in --ticket=1038 "Working on my falafel recipe"
 
-The above command will enter '9234' into your timesheet, and mark the task
-as billable.  But, what if you want your ticket to be marked as non-billable?::
+The above command will enter 'Working on my falafel recipe' into your timesheet,
+set the entry's ticket number to '1038' and mark the task as billable (the default).
+But, what if you want your ticket to be marked as non-billable?::
 
-  $ t in '9234 (Non Billable)'
+  $ t in --ticket=1038 --non-billable "Working on my falafel recipe"
 
-If your task description includes a ticket number but has other text aside from
-the number itself, the task will be marked as 'Non-billable'.  Usually, if I am
-entering a non-billable task, I'll enter a description like '9234-NB'.  The '-NB'
-will cause the ticket to be marked as non-billable.
+Additionally, you can modify previous entries' ticket number and billable status
+(as well as any custom attributes) by using the ``alter`` command, optionally
+providing the ID number of an entry of which you'd like to change the properties.::
 
-Also, should you want an entry having annotation that is not a ticket number (or
-is a ticket number with extra text) that you would like posted as billable time,
-you can add the text '(Billable)' to your task description.
+  $ t alter --id=208 --ticket=2408
 
 At the end of the day, you can post your hours to our timesheet automatically
 by running::
@@ -145,6 +143,25 @@ you run ``t out``, you can enter a configuration key like the following::
   post_on_clockout = True
 
 
+Custom Metadata
+---------------
+
+You might have a peculiar use for storing some specific bit of metadata about
+individual ticket entries.  You can use custom metadata attributes to provide
+this functionality.
+
+To use custom metadata attributes, create a configuration section named 
+``custom_ticket_meta`` with the keys and values named after the name of the
+attribute and its help text, respectively::
+
+  [custom_ticket_meta]
+  with=Who are you working with right now?
+  category=What category is the work you're working on?
+
+This will add two new parameters that are settable and modifiable during your 
+``t in``, ``t change`` and ``t alter`` commands just like built-in attributes 
+like an entry's associated ticket number and billable status.
+
 Command Aliases
 ---------------
 
@@ -158,7 +175,7 @@ when changing tasks , you can create aliases in an
 ``aliases`` section in your Timebook configuration.::
 
   [aliases]
-  to = change
+  to=change
 
 You can also override built-in commands; so if you rarely use the built-in ``switch``
 command and would rather have it behave as ``change`` already does, you can, of course,

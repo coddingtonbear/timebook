@@ -573,20 +573,42 @@ def alter(db, args):
 
 Inserts a note associated with the currently active period in the \
 timesheet. For example, ``t alter Documenting timebook.``''')
+    parser.add_option('-t', '--ticket', dest='ticket_number', type='string',
+            default=None, help='Set ticket number'
+            )
+    parser.add_option('--billable', dest='billable', action='store_true',
+            default=None, help='Marks entry as billable'
+            )
+    parser.add_option('--non-billable', dest='billable', action='store_false',
+            default=None, help='Marks entry as billable'
+            )
+    parser.add_option('--id', dest='entry_id', action='string',
+            default=None, help='Entry ID number (defaults to current)'
+            )
     opts, args = parser.parse_args(args=args)
 
-    active = dbutil.get_current_active_info(db)
-    if active is None:
-        raise SystemExit('error: timesheet not active')
-    entry_id = active[0]
-    db.execute(u'''
-    update
-        entry
-    set
-        description = ?
-    where
-        entry.id = ?
-    ''', (' '.join(args), entry_id))
+    if not opts.entry_id:
+        active = dbutil.get_current_active_info(db)
+        if active is None:
+            raise SystemExit('error: timesheet not active')
+        entry_id = active[0]
+    else:
+        entry_id = opts.entry_id
+    if args:
+        db.execute(u'''
+        update
+            entry
+        set
+            description = ?
+        where
+            entry.id = ?
+        ''', (' '.join(args), entry_id))
+    meta = {}
+    if opts.billable != None:
+        meta['billable'] = 'yes' if opts.billable else 'no'
+    if opts.ticket_number != None:
+        meta['ticket_number'] = opts.ticket_number
+    dbutil.update_entry_meta(db, entry_id, meta)
 
 
 @command('show all running timesheets', aliases=('active',), read_only=True)

@@ -126,6 +126,40 @@ def get_most_recent_clockout(db, sheet):
     return db.fetchone()
 
 
+def update_entry_meta(db, id, meta):
+    existing_meta = get_entry_meta(db, id)
+    for key, value in meta.items():
+        if key in existing_meta.keys() and value != existing_meta[key]:
+            db.execute(u'''
+            update
+                entry_meta
+            set 
+                value = ?
+            where 
+                key = ?
+                and
+                entry_id = ?
+            ''', (
+                    value,
+                    key,
+                    id,
+                )
+            )
+        else:
+            db.execute(u'''
+            insert into
+                entry_meta
+                (key, value, entry_id)
+            values
+                (?, ?, ?)
+            ''', (
+                    key,
+                    value,
+                    id
+                )
+            )
+
+
 def get_entry_meta(db, id):
     meta = {}
     db.execute(u'''

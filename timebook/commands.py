@@ -275,7 +275,6 @@ def hours(db, args, extra=None):
 
     ppu = PayPeriodUtil(db)
     hour_info = ppu.get_hours_details()
-    print hour_info
     if options.param and options.param in hour_info.keys():
         param = hour_info[options.param]
         if isinstance(param, datetime):

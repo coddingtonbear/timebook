@@ -43,7 +43,6 @@ class TimesheetPoster(object):
                 )
         self.date = date
         self.db = db
-        self.fake = fake
 
     def get_config(self, section, option):
         try:

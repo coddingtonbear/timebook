@@ -254,16 +254,11 @@ the report.  (default: today)''',
             dest="date",
             default=datetime.now().date()
         )
-    parser.add_option("--fake", action="store_true",
-            dest="fake",
-            default=False
-        )
     (options, args, ) = parser.parse_args()
 
     with TimesheetPoster(
             db,
             options.date,
-            fake=options.fake
             ) as app:
         try:
             app.main()

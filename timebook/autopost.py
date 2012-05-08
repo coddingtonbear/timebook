@@ -30,7 +30,7 @@ from timebook.dbutil import TimesheetRow, get_entry_meta
 class TimesheetPoster(object):
     _config_section = 'timesheet_poster'
 
-    def __init__(self, db, date, fake=False):
+    def __init__(self, db, date):
         self.timesheet_url = db.config.get_with_default(
                 self._config_section,
                 'timesheet_url',
@@ -89,23 +89,8 @@ class TimesheetPoster(object):
                 )
             data.append(('description[]', entry.timesheet_description))
             data.append(('debug[]', '1' if not entry.is_billable else '0'))
-            self.db.execute("""
-                REPLACE INTO entry_details (entry_id, ticket_number, billable)
-                VALUES (?, ?, ?)""", (
-                        entry.id,
-                        entry.ticket_number,
-                        '1' if entry.is_billable else '0'
-                    ))
 
         data_encoded = urllib.urlencode(data)
-        if not self.fake:
-            r = opener.open(
-                    "%s?date=%s" % (
-                        url,
-                        date.strftime("%Y-%m-%d")
-                    ), data_encoded
-                )
-            return r
         return False
 
     def get_entries(self, day):

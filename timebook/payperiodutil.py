@@ -89,7 +89,7 @@ class PayPeriodUtil(object):
                 hours=(expected_hours - total_hours)
             )
 
-        return {
+        outgoing = {
                     'expected': expected_hours,
                     'actual': total_hours,
                     'vacation': vacation,
@@ -99,6 +99,8 @@ class PayPeriodUtil(object):
                     'begin_period': self.begin_period,
                     'end_period': self.real_end_period,
                 }
+        outgoing['balance'] = outgoing['actual'] - outgoing['expected']
+        return outgoing
 
     def is_unpaid(self, date_to_check):
         dx = date_to_check

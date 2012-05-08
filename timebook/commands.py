@@ -268,35 +268,45 @@ the report.  (default: today)''',
 
 @command('provides hours information for the current pay period', name='hours',
         aliases=('payperiod', 'pay', 'period', 'offset', ), read_only=True)
-def pay_period_info(db, args, extra=None):
+def hours(db, args, extra=None):
+    parser = optparse.OptionParser()
+    parser.add_option("--param", type="string", dest="param", default=None)
+    (options, args, ) = parser.parse_args()
+
     ppu = PayPeriodUtil(db)
     hour_info = ppu.get_hours_details()
-
-    print "Period: %s through %s" % (
-            hour_info['begin_period'].strftime("%Y-%m-%d"),
-            hour_info['end_period'].strftime("%Y-%m-%d"),
-            )
-
-    if(hour_info['actual'] > hour_info['expected']):
-        print "%.2f hour SURPLUS" % (
-                hour_info['actual'] - hour_info['expected'],
-            )
-        print "%s hours unpaid" % (hour_info['unpaid'],)
-        print "%s hours vacation" % (hour_info['vacation'], )
-        print ""
-        print "You should have left at %s today to maintain hours." % (
-                hour_info['out_time'].strftime("%H:%M"),
-            )
+    print hour_info
+    if options.param and options.param in hour_info.keys():
+        param = hour_info[options.param]
+        if isinstance(param, datetime):
+            param = int(time.mktime(param.timetuple()))
+        print param
     else:
-        print "%.2f hour DEFICIT" % (
-                hour_info['expected'] - hour_info['actual']
-            )
-        print "%s hours unpaid" % (hour_info['unpaid'])
-        print "%s hours vacation" % (hour_info['vacation'], )
-        print ""
-        print "You should leave at %s today to maintain hours." % (
-                hour_info['out_time'].strftime("%H:%M"),
-            )
+        print "Period: %s through %s" % (
+                hour_info['begin_period'].strftime("%Y-%m-%d"),
+                hour_info['end_period'].strftime("%Y-%m-%d"),
+                )
+
+        if(hour_info['actual'] > hour_info['expected']):
+            print "%.2f hour SURPLUS" % (
+                    hour_info['actual'] - hour_info['expected'],
+                )
+            print "%s hours unpaid" % (hour_info['unpaid'],)
+            print "%s hours vacation" % (hour_info['vacation'], )
+            print ""
+            print "You should have left at %s today to maintain hours." % (
+                    hour_info['out_time'].strftime("%H:%M"),
+                )
+        else:
+            print "%.2f hour DEFICIT" % (
+                    hour_info['expected'] - hour_info['actual']
+                )
+            print "%s hours unpaid" % (hour_info['unpaid'])
+            print "%s hours vacation" % (hour_info['vacation'], )
+            print ""
+            print "You should leave at %s today to maintain hours." % (
+                    hour_info['out_time'].strftime("%H:%M"),
+                )
 
 
 @command('start the timer for the current timesheet', name='in',

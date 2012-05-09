@@ -90,7 +90,13 @@ class TimesheetPoster(object):
             data.append(('debug[]', '1' if not entry.is_billable else '0'))
 
         data_encoded = urllib.urlencode(data)
-        return False
+        r = opener.open(
+                "%s?date=%s" % (
+                    url,
+                    date.strftime("%Y-%m-%d")
+                ), data_encoded
+            )
+        return r
 
     def get_entries(self, day):
         self.db.execute("""

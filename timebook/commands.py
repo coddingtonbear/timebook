@@ -237,7 +237,7 @@ the sqlite3 command.''')
 @command('start a new task on the current timesheet', name='change')
 def change(db, args, extra=None):
     out(db, [])
-    in_(db, args)
+    in_(db, args, change=True)
 
 
 @command('post timesheet hours to timesheet online',
@@ -310,7 +310,7 @@ def hours(db, args, extra=None):
 
 @command('start the timer for the current timesheet', name='in',
          aliases=('start',))
-def in_(db, args, extra=None):
+def in_(db, args, extra=None, change=False):
     parser = optparse.OptionParser(usage='''usage: %prog in [NOTES...]
 
 Start the timer for the current timesheet. Must be called before out.
@@ -324,9 +324,6 @@ Notes may be specified for this period. This is exactly equivalent to
             )
     parser.add_option('-a', '--at', dest='at', type='string',
             help='Set time of clock-in'
-            )
-    parser.add_option('-r', '--resume', dest='resume', action='store_true',
-            default=False, help='Clocks in with status of last active period'
             )
     parser.add_option('-t', '--ticket', dest='ticket_number', type='string',
             default=None, help='Set ticket number'
@@ -348,9 +345,6 @@ Notes may be specified for this period. This is exactly equivalent to
         switch(db, [sheet])
     else:
         sheet = dbutil.get_current_sheet(db)
-    if opts.resume and args:
-        parser.error('"--resume" already sets a note, and is incompatible \
-with arguments.')
     timestamp = cmdutil.parse_date_time_or_now(opts.at)
     if opts.out:
         clock_out(db, timestamp=timestamp)
@@ -360,11 +354,17 @@ with arguments.')
     most_recent_clockout = dbutil.get_most_recent_clockout(db, sheet)
     description = u' '.join(args) or None
     if most_recent_clockout:
-        (id, start_time, previous_timestamp, previous_description) = most_recent_clockout
-        if timestamp < previous_timestamp:
+        (id, start_time, prev_timestamp, prev_desc) = most_recent_clockout
+        prev_meta = dbutil.get_entry_meta(db, id)
+        if timestamp < prev_timestamp:
             raise SystemExit('error: time periods could end up overlapping')
-        if opts.resume:
-            description = previous_description
+        if change:
+            if not description:
+                description = prev_desc
+            for p_key, p_value in prev_meta.items():
+                if p_key not in metadata.keys() or not metadata[p_key]:
+                    metadata[p_key] = p_value
+
     db.execute(u'''
     insert into entry (
         sheet, start_time, description, extra

@@ -206,8 +206,9 @@ Commands
 **change**
   Stop the timer for the current timesheet, and re-start the timer for the
   current timesheet with a new description.  Notes may be specified for this 
-  period. This is exactly equivalent to
-  ``t out; t in NOTES``
+  period. This is roughly equivalent to ``t out; t in NOTES``, excepting that
+  any metadata set for the previous timesheet entry will be preserved for the
+  new timesheet entry.
 
   *Also accepts custom ticket metadata parameters.*
 

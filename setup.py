@@ -16,7 +16,7 @@ setup(
         'Programming Language :: Python',
         'Topic :: Utilities',
     ],
-    packages=['timebook', ],
+    packages=['timebook', 'timebook.migrations',],
     entry_points={'console_scripts': [
         't = timebook.cmdline:run_from_cmdline']},
     install_requires = [

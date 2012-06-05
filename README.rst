@@ -126,7 +126,7 @@ a format like::
   username = MY USERNAME
   password = MY PASSWORD
 
-Additionally, you can set sheet-specific reporting urls and hooks by setting
+Additionally, you can set sheet-specific reporting urls, hooks, etc  by setting
 a configuration section using the name of the sheet for which you would like
 a pre, post, or reporting hook to be executed, and the name of the URL or 
 application you would like executed like::
@@ -136,12 +136,47 @@ application you would like executed like::
   pre_hook = /path/to/some/other/application
   reporting_url = http://www.somedomain.com/reporting/
 
-In the event that you would like your hours to be automatically posted when
-you run ``t out``, you can enter a configuration key like the following::
+  [some_other_client]
+  post_out_hook = /path/to/application
+  autocontinue =
 
-  [automation]
-  post_on_clockout = True
+Hooks
+`````
 
+Hooks can be assigned a per-timesheet and per-timesheet-per-command basis by adding
+entries to your timesheet configuration like::
+
+  [timesheet]
+  post_hook = /path/to/some/post_hook/application/
+  pre_out_hook = /path/to/some/pre_out_hook/application/
+
+In the above example, the command ``/path/to/some/post_hook/application/`` will
+be executed after every command; if the command exits with a non-zero status, 
+an error will be displayed (but the entry will still be created successfully).
+
+Additionally, the command ``/path/to/some/pre_out_hook/application/`` will be 
+executed before every execution of the ``out`` command (which is executed when
+one runs the ``t out`` command as well as the ``t change`` command).  Should the
+hooked application execute with a non-zero status, an error will be displayed and 
+the entry *will not* be created successfully.
+
+Autocontinuation
+````````````````
+
+Should you be working on a project with very-fine-grained tasks, you may consider
+enabling autocontinue by adding an entry to your timesheet configuration like::
+
+  [timesheet]
+  autocontinue =
+
+Autocontinuation will cause task details that you do not explicitly specify
+to be preserved from the previous timesheet entry to your current timesheet
+entry when you execute ``t change``.  For example::
+
+  t in --ticket=12308 "Helping Brian"
+  // Entry is annotated with ticket# 12308 and a description of "Helping Brian"
+  t change "Troubleshooting with Joseph"
+  // Entry is *still* annotated with ticket# 12308 and a  description of "Troubleshooting with Joesph"
 
 Custom Metadata
 ---------------
@@ -193,6 +228,8 @@ Commands
 
   usage: ``t alter [--billable] [--non-billable] [--ticket=TICKETNUMBER] [--id=ID] NOTES...``
 
+  hooks: ``post_alter_hook``, ``pre_alter_hook``
+
   aliases: *write*
 
 **backend**
@@ -200,6 +237,8 @@ Commands
   the sqlite3 command.
 
   usage: ``t backend``
+
+  hooks: ``post_backend_hook``, ``pre_backend_hook``
 
   aliases: *shell*
 
@@ -214,6 +253,8 @@ Commands
 
   usage: ``t change [--billable] [--non-billable] [--ticket=TICKETNUMBER] [NOTES...]``
 
+  hooks: ``post_change_hook``, ``pre_change_hook``, ``pre_in__hook``, ``post_in__hook``, ``pre_out_hook``, ``post_out_hook``
+
 **details**
   Displays details regarding tickets assigned to a specified ticket number.
 
@@ -222,6 +263,8 @@ Commands
   percentage.
 
   usage: ``t details TICKET_NUMBER``
+
+  hooks: ``pre_details_hook``, ``post_details_hook``
 
 **display**
   Display a given timesheet. If no timesheet is specified, show the
@@ -234,18 +277,9 @@ Commands
 
   usage: ``t display [--show-ids] [--start=YYYY-MM-DD] [--end=YYYY-MM-DD] [TIMESHEET]``
 
+  hooks: ``pre_display_hook``, ``post_display_hook``
+
   aliases: *show*
-
-**format**
-  Export the current sheet as a comma-separated value format
-  spreadsheet.  If the final entry is active, it is ignored.
-
-  If a specific timesheet is given, display the same information for
-  that timesheet instead.
-
-  usage: ``t format [--start DATE] [--end DATE] [TIMESHEET]``
-
-  aliases: *csv*, *export*
 
 **hours**
   Calculates your timesheet's current balance for the current pay period
@@ -256,6 +290,8 @@ Commands
   expecting to reach eight hours.
 
   usage: ``t hours``
+
+  hooks: ``pre_hours_hook``, ``post_hours_hook``
 
   aliases: *payperiod*, *pay*, *period*, *offset*
 
@@ -268,6 +304,8 @@ Commands
 
   usage: ``t in [--billable] [--non-billable] [--ticket=TICKETNUMBER] [--switch TIMESHEET] [NOTES...]``
 
+  hooks: ``pre_in__hook``, ``post_in__hook``
+
   aliases: *start*
 
 **insert**
@@ -276,11 +314,15 @@ Commands
 
   usage: ``t insert START END NOTE``
 
+  hooks: ``pre_insert_hook``, ``post_insert_hook``
+
 **kill**
   Delete a timesheet. If no timesheet is specified, delete the current
   timesheet and switch to the default timesheet.
 
   usage: ``t kill [TIMESHEET]``
+
+  hooks: ``pre_kill_hook``, ``post_kill_hook``
 
   aliases: *delete*
 
@@ -288,6 +330,8 @@ Commands
   List the available timesheets.
 
   usage: ``t list``
+
+  hooks: ``pre_list_hook``, ``post_list_hook``
 
   aliases: *ls*
 
@@ -299,6 +343,8 @@ Commands
 
   usage ``t modify ID``
 
+  hooks: ``pre_modify_hook``, ``post_modify_hook``
+
 **now**
   Print the current sheet, whether it's active, and if so, how long it
   has been active and what notes are associated with the current period.
@@ -308,12 +354,16 @@ Commands
 
   usage: ``t now [--simple] [TIMESHEET]``
 
+  hooks: ``pre_now_hook``, ``post_now_hook``
+
   aliases: *info*
 
 **out**
   Stop the timer for the current timesheet. Must be called after in.
 
   usage: ``t out [--verbose] [TIMESHEET]``
+
+  hooks: ``pre_out_hook``, ``post_out_hook``
 
   aliases: *stop*
 
@@ -326,10 +376,14 @@ Commands
 
   usage ``t post [--date=YYYY-MM-DD]``
 
+  hooks: ``pre_post_hook``, ``post_post_hook``
+
 **running**
   Print all active sheets and any messages associated with them.
 
   usage: ``t running``
+
+  hooks: ``pre_running_hook``, ``post_running_hook``
 
   aliases: *active*
 
@@ -342,9 +396,13 @@ Commands
 
   usage ``t stats [--start=YYYY-MM-DD] [--end=YYYY-MM-DD]``
 
+  hooks: ``pre_stats_hook``, ``post_stats_hook``
+
 **switch**
   Switch to a new timesheet. this causes all future operation (except
   switch) to operate on that timesheet. The default timesheet is called
   "default".
 
   usage: ``t switch TIMESHEET``
+
+  hooks: ``pre_switch_hook``, ``post_switch_hook``

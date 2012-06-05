@@ -358,7 +358,8 @@ Notes may be specified for this period. This is exactly equivalent to
         prev_meta = dbutil.get_entry_meta(db, id)
         if timestamp < prev_timestamp:
             raise SystemExit('error: time periods could end up overlapping')
-        if change:
+        current_sheet = dbutil.get_current_sheet(db)
+        if change and db.config.has_option(current_sheet, 'autocontinue'):
             if not description:
                 description = prev_desc
             for p_key, p_value in prev_meta.items():

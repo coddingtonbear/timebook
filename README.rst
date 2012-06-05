@@ -141,7 +141,7 @@ application you would like executed like::
   autocontinue =
 
 Hooks
-`````
+-----
 
 Hooks can be assigned a per-timesheet and per-timesheet-per-command basis by adding
 entries to your timesheet configuration like::
@@ -161,7 +161,7 @@ hooked application execute with a non-zero status, an error will be displayed an
 the entry *will not* be created successfully.
 
 Autocontinuation
-````````````````
+----------------
 
 Should you be working on a project with very-fine-grained tasks, you may consider
 enabling autocontinue by adding an entry to your timesheet configuration like::

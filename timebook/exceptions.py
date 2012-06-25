@@ -40,3 +40,7 @@ class PostHookException(Exception):
 
 class CommandError(Exception):
     pass
+
+
+class AuthenticationError(Exception):
+    pass

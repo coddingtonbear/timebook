@@ -25,6 +25,7 @@ import urllib2
 
 from timebook.chiliproject import ChiliprojectConnector
 from timebook.dbutil import TimesheetRow, get_entry_meta
+from timebook.exceptions import AuthenticationError
 
 
 class TimesheetPoster(object):
@@ -146,8 +147,11 @@ class TimesheetPoster(object):
                 ('username', username),
                 ('password', password),
             ))
-        opener.open(login_url, data)
-        return opener
+        response = opener.open(login_url, data)
+        if response.read():
+            return opener
+        else:
+            raise AuthenticationError("The credentials you supplied appear to be incorrect.")
 
     def __enter__(self, *args, **kwargs):
         return self

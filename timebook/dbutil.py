@@ -313,10 +313,10 @@ class TimesheetRow(object):
 
     @property
     def timesheet_description(self):
-        if self.ticket_number == self.description:
-            return ''
-        else:
+        if self.description:
             return self.description
+        else:
+            return ''
 
     @property
     def is_billable(self):

@@ -1152,11 +1152,12 @@ def format_timebook(db, sheet, where, show_ids=False):
         extra_count = extra_count + 1 
 
     table = []
-    table_header = ['Day', 'Start      End', 'Duration', 'Notes']
+    table_header = ['Day', 'Start      End', 'Duration']
     for key in metadata_keys:
         table_header.append(
                     key[0].title().replace('_', ' ')
                 )
+    table_header.append('Notes')
     if show_ids:
         table_header.append('ID')
     table.append(table_header)
@@ -1181,7 +1182,7 @@ def format_timebook(db, sheet, where, show_ids=False):
             row = [date]
             cur_day, day_total = days_iter.next()
         row.extend([
-                trange, diff, description
+                trange, diff
             ])
         ticket_metadata = dbutil.get_entry_meta(db, id)
         for meta in metadata_keys:
@@ -1191,6 +1192,7 @@ def format_timebook(db, sheet, where, show_ids=False):
                                 key in ticket_metadata.keys()
                             ) else ''
                     )
+        row.append(description)
         if show_ids:
             row.append(id)
         table.append(row)

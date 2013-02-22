@@ -573,8 +573,16 @@ def clock_out(db, at=None, verbose=False, timestamp=None, all_out=False):
 def backdate(db, args):
     try:
         try:
+            now_dt = datetime.now()
             offset = cmdutil.get_time_offset(args[0])
-            start = datetime.now() - offset
+            start = datetime(
+                now_dt.year,
+                now_dt.month,
+                now_dt.day,
+                now_dt.hour,
+                now_dt.minute,
+                now_dt.second
+            ) - offset
         except ValueError:
             start = datetime.fromtimestamp(cmdutil.parse_date_time(args[0]))
         args = args[1:]

@@ -273,7 +273,12 @@ def hours(db, args, extra=None):
     parser.add_option("--param", type="string", dest="param", default=None)
     (options, args, ) = parser.parse_args()
 
-    ppu = PayPeriodUtil(db)
+    payperiod_class = 'MonthlyOnSecondToLastFriday'
+    current_sheet = dbutil.get_current_sheet(db)
+    if db.config.has_option(current_sheet, 'payperiod_type'):
+        payperiod_class = db.config.get(current_sheet, 'payperiod_type')
+
+    ppu = PayPeriodUtil(db, payperiod_class)
     hour_info = ppu.get_hours_details()
     if options.param and options.param in hour_info.keys():
         param = hour_info[options.param]

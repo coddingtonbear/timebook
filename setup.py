@@ -1,3 +1,5 @@
+import multiprocessing
+
 from setuptools import setup
 
 from timebook import get_version
@@ -19,7 +21,13 @@ setup(
     packages=['timebook', 'timebook.migrations',],
     entry_points={'console_scripts': [
         't = timebook.cmdline:run_from_cmdline']},
-    install_requires = [
-            'python-dateutil<2.0',
-        ]
+    install_requires=[
+        'python-dateutil<2.0',
+    ],
+    test_suite='nose.collector',
+    tests_require=[
+        'ddt>=0.4',
+        'mock',
+        'nose',
+    ]
 )

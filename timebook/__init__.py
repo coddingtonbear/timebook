@@ -26,7 +26,7 @@ import os.path
 import sys
 
 __author__ = 'Adam Coddington <me@adamcoddington.net>, Trevor Caira <trevor@caira.com>'
-__version__ = (3, 5, 1)
+__version__ = (3, 7, 0)
 
 def get_version():
     return '.'.join(str(bit) for bit in __version__)

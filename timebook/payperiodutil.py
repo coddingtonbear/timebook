@@ -37,11 +37,12 @@ class PayPeriodUtil(object):
                 payperiodtypes,
                 payperiod_class
             )
-        except AttributeError:
+        except AttributeError as e:
             logger.exception(
                 "Payperiod type %s does not exist",
                 payperiod_class
             )
+            raise e
 
         self.db = db
         self.now = datetime.now()
@@ -53,7 +54,9 @@ class PayPeriodUtil(object):
 
     def get_hours_details(self):
         all_weekdays = self.weekdays_rule.between(
-                self.begin_period,
+                # We need it to be able to count the beginning of the day
+                # on `begin_period`; so subtract a microsecond.
+                self.begin_period - timedelta(microseconds=1),
                 self.now
             )
         expected_hours = self.hours_per_day * len(all_weekdays)
@@ -79,6 +82,7 @@ class PayPeriodUtil(object):
         out_time = datetime.now() + timedelta(
                 hours=(expected_hours - total_hours)
             )
+
 
         outgoing = {
                     'expected': expected_hours,

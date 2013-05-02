@@ -50,6 +50,28 @@ class PayPeriod(object):
         return 8
 
 
+class Rolling7DayWindow(PayPeriod):
+    @property
+    def begin_period(self):
+        return self.now - relativedelta.relativedelta(
+            days=7,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+
+    @property
+    def end_period(self):
+        return self.now + relativedelta.relativedelta(
+            days=1,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+
+
 class Rolling30DayWindow(PayPeriod):
     @property
     def begin_period(self):
@@ -96,3 +118,24 @@ class MonthlyOnSecondToLastFriday(PayPeriod):
             weekday=rrule.FR(-2)
         ) + timedelta(days=1)
 
+
+class TodayOnly(PayPeriod):
+    @property
+    def begin_period(self):
+        return self.now - relativedelta.relativedelta(
+            days=0,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0
+        )
+
+    @property
+    def end_period(self):
+        return self.now + relativedelta.relativedelta(
+            days=1,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )

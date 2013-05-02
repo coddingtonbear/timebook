@@ -83,7 +83,7 @@ class Rolling30DayWindow(RollingWindowPayPeriod):
 
 
 class Rolling90DayWindow(RollingWindowPayPeriod):
-    window_size = 30
+    window_size = 90
 
 
 class RollingAnnualWindow(RollingWindowPayPeriod):

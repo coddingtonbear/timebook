@@ -1,5 +1,7 @@
 .. -*- restructuredtext -*-
 
+.. image:: https://travis-ci.org/latestrevision/timebook.png?branch=master
+
 Timebook
 ========
 

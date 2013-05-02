@@ -574,6 +574,83 @@ def clock_out(db, at=None, verbose=False, timestamp=None, all_out=False):
         ''', (timestamp, active_id))
 
 
+@command('create a new timebook entry and backdate it')
+def backdate(db, args):
+    try:
+        try:
+            now_dt = datetime.now()
+            offset = cmdutil.get_time_offset(args[0])
+            start = datetime(
+                now_dt.year,
+                now_dt.month,
+                now_dt.day,
+                now_dt.hour,
+                now_dt.minute,
+                now_dt.second
+            ) - offset
+        except ValueError:
+            start = datetime.fromtimestamp(cmdutil.parse_date_time(args[0]))
+        args = args[1:]
+
+        active = dbutil.get_current_start_time(db)
+        if active:
+            clock_out(db)
+
+        sql = """
+            SELECT id 
+            FROM entry
+            WHERE 
+                sheet = ?
+                AND
+                end_time > ?
+        """
+        sql_args = (
+            dbutil.get_current_sheet(db),
+            int(time.mktime(start.timetuple())),
+        )
+        db.execute(sql, sql_args)
+
+        rows = db.fetchall()
+
+        if len(rows) > 1:
+            raise exceptions.CommandError(
+                '%s overlaps %s entries. '
+                'Please select a later time to backdate to.' % (
+                    start,
+                    len(rows)
+                )
+            )
+
+        sql = """
+            UPDATE entry
+            SET end_time = ?
+            WHERE 
+                sheet = ?
+                AND
+                end_time > ?
+        """
+        sql_args = (
+            int(time.mktime(start.timetuple())),
+            dbutil.get_current_sheet(db),
+            int(time.mktime(start.timetuple())),
+        )
+        db.execute(sql, sql_args)
+
+        # Clock in
+        args.extend(
+            ['--at', str(start)]
+        )
+        in_(db, args)
+    except IndexError as e:
+        print (
+            "Backdate requires at least one argument: START. "
+            "Please use either the format \"YYY-MM-DD HH:MM\" or "
+            "a time offset like '1h 20m'."
+        )
+        logger.exception(e)
+
+
+
 @command('alter the description of the active period', aliases=('write',))
 def alter(db, args):
     parser = optparse.OptionParser(usage='''usage: %prog alter NOTES...

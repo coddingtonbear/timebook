@@ -72,6 +72,9 @@ matches = [(re.compile(r'^\d+:\d+$'), today_str + " ", ":00"),
            (re.compile(r'^\d+-\d+-\d+\s+\d+:\d+:\d+$'), "", ""),
           ]
 fmt = "%Y-%m-%d %H:%M:%S"
+offset_regexp = re.compile(
+    r'(?:(?P<days>\d+)d)? ?(?:(?P<hours>\d+)h)? ?(?:(?P<minutes>\d+)m)? ?(?:(?P<seconds>\d+)s)?'
+)
 
 
 def _rawinput_date_format(message, fmt, default):
@@ -95,6 +98,14 @@ def rawinput_date_format(message, fmt, default):
         result = _rawinput_date_format(message, fmt, default)
         if result != False:
             return result
+
+
+def get_time_offset(offset_str):
+    raw = offset_regexp.search(offset_str).groupdict()
+    groups = dict((k, int(v)) for k, v in raw.iteritems() if v is not None)
+    if groups:
+        return datetime.timedelta(**groups)
+    raise ValueError('%s is not a valid offset' % offset_str)
 
 
 def parse_date_time(dt_str):

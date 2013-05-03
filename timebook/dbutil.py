@@ -54,7 +54,8 @@ def get_active_info(db, sheet):
     db.execute(u'''
     select
         strftime('%s', 'now') - entry.start_time,
-        entry.description
+        entry.description,
+        id
     from
         entry
     where

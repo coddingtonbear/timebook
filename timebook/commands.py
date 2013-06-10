@@ -88,7 +88,7 @@ def post_hook(db, func_name, args, kwargs, res):
     return True
 
 
-def command(desc, name=None, aliases=(), locking=True, read_only=True):
+def command(desc, name=None, aliases=(), locking=True, read_only=False):
     def decorator(func):
         func_name = name or func.func_code.co_name
         commands[func_name] = func
@@ -151,52 +151,53 @@ def run_command(db, cmd, args):
             if db.config.has_option(
                         current_sheet,
                         'reporting_url'
-                    ) and db.config.has_option(
-                        'auth',
-                        'username'
                     ):
                 current_info = dbutil.get_active_info(db, current_sheet)
                 report_to_url(
                         db.config.get(current_sheet, 'reporting_url'),
-                        db.config.get('auth', 'username'),
+                        None,
                         current_info[1] if current_info else '',
                         (
                             datetime.utcnow()
                             - timedelta(seconds=current_info[0])
                         ).strftime("%Y-%m-%d %H:%M:%S")
                         if current_info else '',
+                        datetime.now() - timedelta(seconds=current_info[0]),
+                        current_info[0] if current_info else 0,
                         cmd,
                         args
                     )
-            elif db.config.has_option(current_sheet, 'reporting_url'):
-                print "Please specify a username in your configuration."
-    except:
+    except Exception:
         if commands[func].locking:
             db.execute(u'rollback')
         raise
 
 
-def report_to_url(url, user, current, since, command, args):
+def report_to_url(url, user, current, since_str, since, seconds, command, args):
     try:
         url_data = urlparse(url)
         h = httplib.HTTPConnection(url_data.netloc)
-        h.request("POST", url_data.path, urlencode({
-                'user': user,
-                'command': command,
-                'current': current,
-                'since': since,
-                'args': json.dumps(args),
-            }), {
-                "Content-type": "application/x-www-form-urlencoded",
-                "Accept": "text/plain"
+        message = {
+            'message': (
+                '[Since %s]\r%s' % (
+                    since.strftime('%H:%M'),
+                    current,
+                )
+                if current else '(Timesheet Inactive)'
+            ),
+        }
+        h.request("PUT", url_data.path, json.dumps(message), {
+                "Content-type": "application/json",
             })
         response = h.getresponse()
         content = response.read()
         if response.status != 200:
             raise exceptions.ReportingException(
-                "HTTP Error %s encountered while posting reporting "
-                + "information." % response.status
-                )
+                (
+                    "HTTP Error %s encountered while posting reporting "
+                    "information."
+                ) % response.status
+            )
         if len(content) > 0:
             print content
     except Exception as e:

@@ -760,11 +760,24 @@ usage, see "%(prog)s --help".' % {'prog': os.path.basename(sys.argv[0])})
         active = 'not active'
     else:
         duration = str(timedelta(seconds=running[0]))
-        if running[1]:
-            notes = running[1].rstrip('.')
-            active = '%s (%s)' % (duration, notes)
-        else:
-            active = duration
+        meta = dbutil.get_entry_meta(db, running[2])
+        meta_string = ', '.join(['%s: %s' % (k, v) for k, v in meta.items()])
+        description = running[1]
+
+        details_parts = []
+        if description:
+            details_parts.append(description)
+        if meta_string:
+            details_parts.append(meta_string)
+
+        active = '%s' % duration
+
+        if details_parts:
+            active = '%s (%s)' % (
+                active,
+                '; '.join(details_parts)
+            )
+
     if opts.notes:
         print notes
     else:

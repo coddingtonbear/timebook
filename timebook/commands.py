@@ -153,10 +153,15 @@ def run_command(db, cmd, args):
                         'reporting_url'
                     ):
                 current_info = dbutil.get_active_info(db, current_sheet)
+                status_string = dbutil.get_status_string(
+                    db,
+                    current_sheet,
+                    exclude=['billable']
+                )
                 report_to_url(
                         db.config.get(current_sheet, 'reporting_url'),
                         None,
-                        current_info[1] if current_info else '',
+                        status_string,
                         (
                             datetime.utcnow()
                             - timedelta(seconds=current_info[0])
@@ -735,9 +740,6 @@ timesheet instead.''')
     parser.add_option('-s', '--simple', dest='simple',
                       action='store_true', help='Only display the name \
 of the current timesheet.')
-    parser.add_option('-n', '--notes', dest='notes',
-                      action='store_true', help='Only display the notes \
-associated with the current period.')
     opts, args = parser.parse_args(args=args)
 
     if opts.simple:
@@ -755,33 +757,19 @@ associated with the current period.')
         raise SystemExit('%(prog)s: error: sheet is empty. For program \
 usage, see "%(prog)s --help".' % {'prog': os.path.basename(sys.argv[0])})
     running = dbutil.get_active_info(db, sheet)
-    notes = ''
-    if running is None:
-        active = 'not active'
-    else:
+    if running:
         duration = str(timedelta(seconds=running[0]))
-        meta = dbutil.get_entry_meta(db, running[2])
-        meta_string = ', '.join(['%s: %s' % (k, v) for k, v in meta.items()])
-        description = running[1]
-
-        details_parts = []
-        if description:
-            details_parts.append(description)
-        if meta_string:
-            details_parts.append(meta_string)
-
-        active = '%s' % duration
-
-        if details_parts:
-            active = '%s (%s)' % (
-                active,
-                '; '.join(details_parts)
-            )
-
-    if opts.notes:
-        print notes
+    status_string = dbutil.get_status_string(db, sheet)
+    if status_string:
+        print '%s: %s (%s)' % (
+            sheet,
+            duration,
+            status_string
+        )
+    elif running:
+        print '%s: (active)' % sheet
     else:
-        print '%s: %s' % (sheet, active)
+        print '%s: (inactive)' % sheet
 
 
 @command('insert a new timesheet entry at a specified time')

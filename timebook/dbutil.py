@@ -385,3 +385,35 @@ def dict_factory(cursor, row):
     for idx, col in enumerate(cursor.description):
         d[col[0]] = row[idx]
     return d
+
+
+def get_status_string(db, sheet, exclude=None):
+    if exclude is None:
+        exclude = []
+    running = get_active_info(db, sheet)
+
+    if running is None:
+        return None
+
+    meta = get_entry_meta(db, running[2])
+    meta_string = ', '.join(
+        ['%s: %s' % (k, v) for k, v in meta.items() if k not in exclude]
+    )
+    description = running[1]
+
+    details_parts = []
+    if description:
+        details_parts.append(description)
+    if meta_string:
+        details_parts.append(meta_string)
+
+    return '; '.join(details_parts)
+
+    active = '%s' % duration
+
+    if details_parts:
+        active = '%s (%s)' % (
+            active,
+            '; '.join(details_parts)
+        )
+    return active

@@ -167,12 +167,14 @@ def run_command(db, cmd, args):
                             - timedelta(seconds=current_info[0])
                         ).strftime("%Y-%m-%d %H:%M:%S")
                         if current_info else '',
-                        datetime.now() - timedelta(seconds=current_info[0]),
+                        datetime.now() - timedelta(seconds=current_info[0]) if current_info else timedelta(seconds=0),
                         current_info[0] if current_info else 0,
                         cmd,
                         args
                     )
     except Exception:
+        import traceback
+        traceback.print_exc()
         if commands[func].locking:
             db.execute(u'rollback')
         raise
@@ -182,16 +184,20 @@ def report_to_url(url, user, current, since_str, since, seconds, command, args):
     try:
         url_data = urlparse(url)
         h = httplib.HTTPConnection(url_data.netloc)
-        message = {
-            'message': (
-                '[Since %s]\r%s' % (
-                    since.strftime('%H:%M'),
-                    current,
-                )
-                if current else '(Timesheet Inactive)'
-            ),
-        }
-        h.request("PUT", url_data.path, json.dumps(message), {
+        if current:
+            message = {
+                'message': (
+                    '[Since %s]\r%s' % (
+                        since.strftime('%H:%M'),
+                        current,
+                    )
+                ),
+            }
+            h.request("PUT", url_data.path, json.dumps(message), {
+                "Content-type": "application/json",
+            })
+        else:
+            h.request("DELETE", url_data.path, '', {
                 "Content-type": "application/json",
             })
         response = h.getresponse()

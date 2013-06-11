@@ -18,7 +18,7 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from dateutil import relativedelta, rrule
 
@@ -136,3 +136,23 @@ class TodayOnly(PayPeriod):
             second=0,
             microsecond=0,
         )
+
+
+class Quarterly(PayPeriod):
+    def __init__(self, now):
+        super(Quarterly, self).__init__(now)
+        self.rule = rrule.rrule(
+            rrule.MONTHLY,
+            bymonth=(1, 4, 7, 10),
+            bysetpos=-1,
+            dtstart=datetime(self.now.year, 1, 1),
+            count=8
+        )
+
+    @property
+    def begin_period(self):
+        return self.rule.before(self.now)
+
+    @property
+    def end_period(self):
+        return self.rule.after(self.now)

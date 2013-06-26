@@ -116,6 +116,28 @@ class MonthlyOnSecondToLastFriday(PayPeriod):
         ) + timedelta(days=1)
 
 
+class Weekly(PayPeriod):
+    @property
+    def begin_period(self):
+        return self.now - relativedelta.relativedelta(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+            weekday=rrule.SU(-1)
+        ) + timedelta(days = 1)
+
+    @property
+    def end_period(self):
+        return self.now + relativedelta.relativedelta(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+            weekday=rrule.SU(1)
+        ) + timedelta(days=1)
+
+
 class TodayOnly(PayPeriod):
     @property
     def begin_period(self):

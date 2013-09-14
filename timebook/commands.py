@@ -1113,7 +1113,7 @@ style (--format=plain) or csv --format=csv")
         where += ' and start_time >= %s' % start
     else:
         where += ''' and start_time >
-            STRFTIME(\'%s\', \'now\', \'-7 days\', \'start of day\', \'utc\')
+            STRFTIME(\'%s\', \'now\', \'-6 days\', \'start of day\')
         '''
     if opts.end is not None:
         end = cmdutil.parse_date_time(opts.end)

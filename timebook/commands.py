@@ -24,6 +24,7 @@
 from datetime import datetime, timedelta
 from functools import wraps
 from gettext import ngettext
+import hashlib
 import httplib
 import json
 import os
@@ -276,6 +277,62 @@ the report.  (default: today)''',
             app.main()
         except Exception, e:
             raise e
+
+
+@command('monitors for taskwarrior changes', aliases=('taskwarrior', 'task'), locking=False)
+def watch_tasks(db, args, extra=None):
+    def poll_taskwarrior():
+        tasks = []
+        results = subprocess.check_output(
+            [
+                "task",
+                "export",
+                "status:pending",
+                "start.not:",
+            ]
+        )
+        for line in results.splitlines():
+            if len(line.strip()) > 0:
+                tasks.append(
+                    json.loads(line.rstrip(','))
+                )
+        return tasks, hashlib.md5(results).hexdigest()
+
+    logger.info("Watching taskwarrior output...")
+    task_hash_status = ''
+    while True:
+        tasks, task_hash = poll_taskwarrior()
+        args = []
+        command = 'change'
+        do_change = False
+        if task_hash != task_hash_status:
+            task_hash_status = task_hash
+            value = dbutil.get_current_active_info(db)
+            if tasks:
+                if len(tasks) > 1:
+                    logger.warning("Multiple tasks currently active; using first.")
+                task = tasks[0]
+                logger.info("Active task changed: %s" % task)
+                if not value:
+                    logger.warning("Currently not clocked-in; clocking-in now.")
+                    command = 'in'
+                ticket = task.get('ticket')
+                if ticket:
+                    args.append('--ticket=%s' % ticket)
+                pr = task.get('pr')
+                if pr:
+                    args.append('--pr=%s' % pr.replace('/', ':'))
+                description = task.get('description')
+                if description:
+                    args.append(description)
+                do_change = True
+            elif value:
+                logger.warning("No active tasks; changing to nil.")
+                do_change = True
+            if do_change:
+                logger.info("Running %s %s" % (command, args))
+                run_command(db, command, args)
+        time.sleep(1)
 
 
 @command('provides hours information for the current pay period', name='hours',

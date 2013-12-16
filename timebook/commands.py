@@ -305,33 +305,40 @@ def watch_tasks(db, args, extra=None):
         args = []
         command = 'change'
         do_change = False
-        if task_hash != task_hash_status:
+        value = dbutil.get_current_active_info(db)
+        if value and task_hash != task_hash_status:
             task_hash_status = task_hash
-            value = dbutil.get_current_active_info(db)
             if tasks:
                 if len(tasks) > 1:
                     logger.warning("Multiple tasks currently active; using first.")
                 task = tasks[0]
                 logger.info("Active task changed: %s" % task)
-                if not value:
-                    logger.warning("Currently not clocked-in; clocking-in now.")
-                    command = 'in'
+
+                # Ticket No.
                 ticket = task.get('ticket')
                 if ticket:
                     args.append('--ticket=%s' % ticket)
+
+                # Pull Request No.
                 pr = task.get('pr')
                 if pr:
                     args.append('--pr=%s' % pr.replace('/', ':'))
+
+                # Description
                 description = task.get('description')
                 if description:
                     args.append(description)
+
                 do_change = True
             elif value:
                 logger.warning("No active tasks; changing to nil.")
                 do_change = True
+
             if do_change:
                 logger.info("Running %s %s" % (command, args))
                 run_command(db, command, args)
+        elif task_hash != task_hash_status:
+            logger.error("Currently not clocked-in.")
         time.sleep(1)
 
 

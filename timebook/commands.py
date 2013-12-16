@@ -329,8 +329,13 @@ def watch_tasks(db, args, extra=None):
                 if description:
                     args.append(description)
 
+                _, duration = value
+                logger.error(duration)
+                if duration < 5:
+                    command = 'alter'
+
                 do_change = True
-            elif value:
+            else:
                 logger.warning("No active tasks; changing to nil.")
                 do_change = True
 

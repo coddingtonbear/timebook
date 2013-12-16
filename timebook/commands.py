@@ -296,7 +296,10 @@ def watch_tasks(db, args, extra=None):
                 tasks.append(
                     json.loads(line.rstrip(','))
                 )
-        return tasks, hashlib.md5(results).hexdigest()
+        return (
+            tasks,
+            hashlib.md5('|'.join([t.get('uuid') for t in tasks])).hexdigest()
+        )
 
     logger.info("Watching taskwarrior output...")
     task_hash_status = ''

@@ -334,7 +334,7 @@ def watch_tasks(db, args, extra=None):
 
                 _, duration = value
                 logger.error(duration)
-                if duration < 5:
+                if duration < 60:
                     command = 'alter'
 
                 do_change = True

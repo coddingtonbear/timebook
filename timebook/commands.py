@@ -370,6 +370,7 @@ def hours(db, args, extra=None):
                 )
             print "%s hours unpaid" % (hour_info['unpaid'],)
             print "%s hours vacation" % (hour_info['vacation'], )
+            print "%s hours adjustment" % (hour_info['adjustments'], )
             print ""
             print "You should have left at %s today to maintain hours." % (
                     hour_info['out_time'].strftime("%H:%M"),
@@ -380,6 +381,7 @@ def hours(db, args, extra=None):
                 )
             print "%s hours unpaid" % (hour_info['unpaid'])
             print "%s hours vacation" % (hour_info['vacation'], )
+            print "%s hours adjustment" % (hour_info['adjustments'], )
             print ""
             print "You should leave at %s today to maintain hours." % (
                     hour_info['out_time'].strftime("%H:%M"),

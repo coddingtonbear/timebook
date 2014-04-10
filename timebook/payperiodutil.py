@@ -20,9 +20,7 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from datetime import datetime, timedelta
 import logging
-
-from dateutil import relativedelta
-from dateutil import rrule
+import time
 
 from timebook import payperiodtypes
 
@@ -74,10 +72,16 @@ class PayPeriodUtil(object):
             elif(self.is_vacation(day)):
                 expected_hours = expected_hours - self.hours_per_day
                 vacation = vacation + self.hours_per_day
+
         total_hours = self.count_hours_after(
                 self.begin_period,
                 self.end_period
             )
+        adjustments = self.get_adjustments(
+            self.begin_period,
+            self.end_period,
+        )
+        expected_hours -= adjustments
 
         out_time = datetime.now() + timedelta(
                 hours=(expected_hours - total_hours)
@@ -90,12 +94,26 @@ class PayPeriodUtil(object):
                     'vacation': vacation,
                     'unpaid': unpaid,
                     'holiday': holiday,
+                    'adjustments': adjustments,
                     'out_time': out_time,
                     'begin_period': self.begin_period,
                     'end_period': self.end_period,
                 }
         outgoing['balance'] = outgoing['actual'] - outgoing['expected']
         return outgoing
+
+    def get_adjustments(self, min_date, max_date):
+        self.db.execute("""
+            SELECT SUM(adjustment) AS adjustment_sum
+            FROM adjustments
+            WHERE timestamp >= ? and timestamp < ?
+            ;
+        """, (
+            time.mktime(min_date.timetuple()),
+            time.mktime(max_date.timetuple()),
+        ))
+        value = self.db.fetchone()[0]
+        return value if value else 0
 
     def is_unpaid(self, date_to_check):
         dx = date_to_check

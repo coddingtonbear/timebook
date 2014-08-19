@@ -279,8 +279,12 @@ the report.  (default: today)''',
             raise e
 
 
-@command('monitors for taskwarrior changes', aliases=('taskwarrior', 'task'), locking=False)
-def watch_tasks(db, args, extra=None):
+@command(
+    'monitors for taskwarrior changes',
+    aliases=('watch_tasks', 'task'),
+    locking=False
+)
+def taskwarrior(db, args, extra=None):
     def poll_taskwarrior():
         tasks = []
         results = subprocess.check_output(

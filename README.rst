@@ -413,7 +413,7 @@ Commands
   Watch `taskwarrior <http://taskwarrior.org/>`_ for active tasks.  As the
   currently active task changes, create new timesheet entries matching
   the currently-active task.  This command runs forever until exited
-  using ``CTRL``+``C``.
+  using ``CTRL`` + ``C``.
 
   If UDAs named ``ticket`` or ``pr`` are defined, will set the created
   timesheet entry's ``ticket`` and ``pr`` fields to match those of the

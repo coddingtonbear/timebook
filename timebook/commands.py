@@ -313,11 +313,16 @@ def taskwarrior(db, args, extra=None):
         command = 'change'
         do_change = False
         value = dbutil.get_current_active_info(db)
-        if value and task_hash != task_hash_status:
+        if not value and task_hash_status != '':
+            logger.error("Clocked-out.")
+            task_hash_status = ''
+        elif value and task_hash != task_hash_status:
             task_hash_status = task_hash
             if tasks:
                 if len(tasks) > 1:
-                    logger.warning("Multiple tasks currently active; using first.")
+                    logger.warning(
+                        "Multiple tasks currently active; using first."
+                    )
                 task = tasks[0]
                 logger.info("Active task changed: %s" % task)
 
@@ -349,8 +354,6 @@ def taskwarrior(db, args, extra=None):
             if do_change:
                 logger.info("Running %s %s" % (command, args))
                 run_command(db, command, args)
-        elif task_hash != task_hash_status:
-            logger.error("Currently not clocked-in.")
         time.sleep(1)
 
 

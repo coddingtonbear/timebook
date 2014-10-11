@@ -1100,6 +1100,8 @@ YYYY-MM-DD.')
 style (--format=plain) or csv --format=csv")
     parser.add_option('-i', '--show-ids', dest='show_ids',
             action='store_true', default=False)
+    parser.add_option('--summary', dest='summary',
+            action='store_true', default=False)
     opts, args = parser.parse_args(args=args)
 
     # grab correct sheet
@@ -1122,7 +1124,9 @@ style (--format=plain) or csv --format=csv")
         end = cmdutil.parse_date_time(opts.end)
         where += ' and end_time <= %s' % end
     if opts.format == 'plain':
-        format_timebook(db, sheet, where, show_ids=opts.show_ids)
+        format_timebook(
+            db, sheet, where, show_ids=opts.show_ids, summary=opts.summary
+        )
     elif opts.format == 'csv':
         format_csv(db, sheet, where, show_ids=opts.show_ids)
     else:
@@ -1180,7 +1184,7 @@ def format_csv(db, sheet, where, show_ids=False):
     writer.writerow(('Total', '', total_formula, ''))
 
 
-def format_timebook(db, sheet, where, show_ids=False):
+def format_timebook(db, sheet, where, show_ids=False, summary=False):
     db.execute(u'''
     select count(*) > 0 from entry where sheet = ?%s
     ''' % where, (sheet,))
@@ -1212,22 +1216,44 @@ def format_timebook(db, sheet, where, show_ids=False):
     ''' % where, (sheet,))
     days = db.fetchall()
     days_iter = iter(days)
-    db.execute(u'''
-    select
-        date(e.start_time, 'unixepoch', 'localtime') as day,
-        e.start_time as start,
-        e.end_time as end,
-        ifnull(e.end_time, strftime('%%s', 'now')) - e.start_time as
-            duration,
-        ifnull(e.description, '') as description,
-        id
-    from
-        entry e
-    where
-        e.sheet = ?%s
-    order by
-        day asc;
-    ''' % where, (sheet,))
+
+    if summary:
+        db.execute(u'''
+        select
+            date(e.start_time, 'unixepoch', 'localtime') as day,
+            min(e.start_time) as start,
+            max(e.end_time) as end,
+            sum(ifnull(e.end_time, strftime('%%s', 'now')) - e.start_time) as
+                duration,
+            ifnull(e.description, '') as description,
+            min(id)
+        from
+            entry e
+        where
+            e.sheet = ?%s
+        group by
+            date(e.start_time, 'unixepoch', 'localtime'),
+            ifnull(e.description, '')
+        order by
+            day asc;
+        ''' % where, (sheet,))
+    else:
+        db.execute(u'''
+        select
+            date(e.start_time, 'unixepoch', 'localtime') as day,
+            e.start_time as start,
+            e.end_time as end,
+            ifnull(e.end_time, strftime('%%s', 'now')) - e.start_time as
+                duration,
+            ifnull(e.description, '') as description,
+            id
+        from
+            entry e
+        where
+            e.sheet = ?%s
+        order by
+            day asc;
+        ''' % where, (sheet,))
     entries = db.fetchall()
 
     # Get list of total metadata keys

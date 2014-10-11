@@ -331,11 +331,12 @@ Commands
 **list**
   List the available timesheets.
 
-  usage: ``t list``
+  usage: ``t list [--summary]``
 
   hooks: ``pre_list_hook``, ``post_list_hook``
 
   aliases: *ls*
+
 
 **modify**
   Provides a facility for one to modify a previously-entered timesheet entry.

@@ -279,6 +279,84 @@ the report.  (default: today)''',
             raise e
 
 
+@command(
+    'monitors for taskwarrior changes',
+    aliases=('watch_tasks', 'task'),
+    locking=False
+)
+def taskwarrior(db, args, extra=None):
+    def poll_taskwarrior():
+        tasks = []
+        results = subprocess.check_output(
+            [
+                "task",
+                "export",
+                "status:pending",
+                "start.not:",
+            ]
+        )
+        for line in results.splitlines():
+            if len(line.strip()) > 0:
+                tasks.append(
+                    json.loads(line.rstrip(','))
+                )
+        return (
+            tasks,
+            hashlib.md5('|'.join([t.get('uuid') for t in tasks])).hexdigest()
+        )
+
+    logger.info("Watching taskwarrior output...")
+    task_hash_status = ''
+    while True:
+        tasks, task_hash = poll_taskwarrior()
+        args = []
+        command = 'change'
+        do_change = False
+        value = dbutil.get_current_active_info(db)
+        if not value and task_hash_status != '':
+            logger.error("Clocked-out.")
+            task_hash_status = ''
+        elif value and task_hash != task_hash_status:
+            task_hash_status = task_hash
+            if tasks:
+                if len(tasks) > 1:
+                    logger.warning(
+                        "Multiple tasks currently active; using first."
+                    )
+                task = tasks[0]
+                logger.info("Active task changed: %s" % task)
+
+                # Ticket No.
+                ticket = task.get('ticket')
+                if ticket:
+                    args.append('--ticket=%s' % ticket)
+
+                # Pull Request No.
+                pr = task.get('pr')
+                if pr:
+                    args.append('--pr=%s' % pr.replace('/', ':'))
+
+                # Description
+                description = task.get('description')
+                if description:
+                    args.append(description)
+
+                _, duration = value
+                logger.error(duration)
+                if duration < 60:
+                    command = 'alter'
+
+                do_change = True
+            else:
+                logger.warning("No active tasks; changing to nil.")
+                do_change = True
+
+            if do_change:
+                logger.info("Running %s %s" % (command, args))
+                run_command(db, command, args)
+        time.sleep(1)
+
+
 @command('provides hours information for the current pay period', name='hours',
         aliases=('payperiod', 'pay', 'period', 'offset', ), read_only=True)
 def hours(db, args, extra=None):

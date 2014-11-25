@@ -1273,8 +1273,11 @@ def format_timebook(db, sheet, where, show_ids=False, summary=False):
     displ_time = lambda t: time.strftime('%H:%M:%S', time.localtime(t))
     displ_date = lambda t: time.strftime('%b %d, %Y',
                                          time.localtime(t))
-    displ_total = lambda t: \
-            cmdutil.timedelta_hms_display(timedelta(seconds=t))
+
+    def displ_total(t):
+        if not summary:
+            return cmdutil.timedelta_hms_display(timedelta(seconds=t))
+        return str(round(t/60.0/60.0, 2))
 
     last_day = None
     day_total = None

@@ -885,8 +885,19 @@ Please use the date format \"YYYY-MM-DD HH:MM\""
 def modify(db, args):
     if len(args) < 1:
         raise exceptions.CommandError("You must select the ID number of an entry \
-of you'd like to modify.")
-    id = args[0]
+of you'd like to modify. Use 'modify latest' to modify the latest entry of the current sheet.")
+    if args[0] == "latest":
+        db.execute(u"""
+            SELECT id
+            FROM entry WHERE sheet = ?
+            ORDER BY id DESC LIMIT 1
+        """, (dbutil.get_current_sheet(db), ))
+        row = db.fetchone()
+        if not row:
+            raise exceptions.CommandError("No entries for modification found.")
+        id = row[0]
+    else:
+        id = args[0]
     db.execute(u"""
         SELECT start_time, end_time, description
         FROM entry WHERE id = ?

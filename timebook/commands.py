@@ -24,6 +24,7 @@
 from datetime import datetime, timedelta
 from functools import wraps
 from gettext import ngettext
+import calendar
 import hashlib
 import httplib
 import json
@@ -1186,11 +1187,13 @@ YYYY-MM-DD.')
     parser.add_option('-f', '--format', dest='format', type='string',
                   default='plain',
                   help="Select whether to output in the normal timebook \
-style (--format=plain) or csv --format=csv")
+style (--format=plain) or csv --format=csv or eu timesheet csv --format=eu")
     parser.add_option('-i', '--show-ids', dest='show_ids',
             action='store_true', default=False)
     parser.add_option('--summary', dest='summary',
             action='store_true', default=False)
+    parser.add_option('-m', '--month', dest='month', type='int',
+            default=0, help='Month to export int[1 .. 12]')
     opts, args = parser.parse_args(args=args)
 
     # grab correct sheet
@@ -1200,8 +1203,14 @@ style (--format=plain) or csv --format=csv")
     else:
         sheet = dbutil.get_current_sheet(db)
 
-    #calculate "where"
+    # calculate "where"
     where = ''
+    if opts.month > 0:
+        # if month option is used, overwrite start and end date
+        y = datetime.now().year
+        opts.start = "%d-%d-01" % (y, opts.month)
+        opts.end = "%d-%d-%d" % (y, opts.month, calendar.monthrange(y, opts.month)[1])
+
     if opts.start is not None:
         start = cmdutil.parse_date_time(opts.start)
         where += ' and start_time >= %s' % start
@@ -1218,8 +1227,102 @@ style (--format=plain) or csv --format=csv")
         )
     elif opts.format == 'csv':
         format_csv(db, sheet, where, show_ids=opts.show_ids)
+    elif opts.format == 'eu':
+        format_eu(
+            db, sheet, where, show_ids=opts.show_ids,
+            sdate=datetime.strptime(opts.start, '%Y-%m-%d'), edate=datetime.strptime(opts.end, '%Y-%m-%d'))
     else:
         raise SystemExit('Invalid format: %s' % opts.format)
+
+
+def format_eu(db, sheet, where, show_ids=False, sdate=None, edate=None):
+    """
+    Attention: Assumes that all queried data is from one month!
+    """
+    if sdate is None or edate is None:
+        raise SystemExit("Please specify start and end or month for export.")
+    import csv
+    writer = csv.writer(sys.stdout, delimiter=';', dialect='excel')
+
+    def daterange(start_date, end_date):
+        for n in range(int((end_date - start_date).days) + 1):
+            yield start_date + timedelta(n)
+
+    def round_working_hours(t):
+        """
+        Rounding with half hour steps.
+        """
+        return round(t*2/60.0/60.0, 0)/2
+
+    day_total = None
+    db.execute(u'''
+    select
+        id,
+        date(e.start_time, 'unixepoch', 'localtime') as day,
+        ifnull(sum(ifnull(e.end_time, strftime('%%s', 'now')) -
+                   e.start_time), 0) as day_total,
+        ifnull(e.description, '') as description
+    from
+        entry e
+    where
+        e.sheet = ?%s
+    group by
+        id
+    order by
+        day asc;
+    ''' % where, (sheet,))
+    rows = db.fetchall()
+    export_data = {}
+    description_list = []
+
+    for r in rows:
+        cell_id = r[0]
+        cell_date = r[1]
+        cell_workhours = r[2]
+        cell_description = r[3]
+
+        # get metadata (especially the workpackage (WP) column)
+        ticket_metadata = dbutil.get_entry_meta(db, r[0])
+        try:
+            cell_wp = int(ticket_metadata["wp"])
+        except:
+            cell_wp = 0
+
+        # create a simple list with all descriptions
+        if cell_description not in description_list:
+            description_list.append(cell_description)
+
+        # create export data as table: rows=WP columns=data
+        if cell_wp not in export_data:
+            export_data[cell_wp] = {}
+        if cell_date not in export_data[cell_wp]:
+            export_data[cell_wp][cell_date] = 0.0
+        export_data[cell_wp][cell_date] += cell_workhours
+
+    # csv export
+    # header
+    dates = [d.strftime("%Y-%m-%d") for d in daterange(sdate, edate)]
+    writer.writerow(["WP"] + dates)
+
+    for wp in range(1, 7):
+        if wp in export_data:
+            columns = export_data[wp]
+        else:
+            columns = {}
+        curr_row = [wp]
+        for d in dates:
+            if d in columns:
+                hours = round_working_hours(columns[d])
+                if hours > 0:
+                    curr_row.append(str(hours).replace(".", ","))
+                else:
+                    curr_row.append("")
+            else:
+                curr_row.append("")
+        writer.writerow(curr_row)
+    writer.writerow([])
+    writer.writerow([])
+    writer.writerow(["Descriptions:", ", ".join(description_list)])
 
 
 def format_csv(db, sheet, where, show_ids=False):

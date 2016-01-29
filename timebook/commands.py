@@ -1304,7 +1304,7 @@ def format_eu(db, sheet, where, show_ids=False, sdate=None, edate=None):
     dates = [d.strftime("%Y-%m-%d") for d in daterange(sdate, edate)]
     writer.writerow(["WP"] + dates)
 
-    for wp in range(1, 7):
+    for wp in range(1, 8):
         if wp in export_data:
             columns = export_data[wp]
         else:

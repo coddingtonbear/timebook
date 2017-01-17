@@ -1,6 +1,6 @@
 .. -*- restructuredtext -*-
 
-**Warning: This library is no longer maintained.***
+**Warning: This library is no longer maintained.**
 
 .. image:: https://travis-ci.org/coddingtonbear/timebook.png?branch=master
 

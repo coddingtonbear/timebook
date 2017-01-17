@@ -409,19 +409,3 @@ Commands
   usage: ``t switch TIMESHEET``
 
   hooks: ``pre_switch_hook``, ``post_switch_hook``
-
-**taskwarrior**
-  Watch `taskwarrior <http://taskwarrior.org/>`_ for active tasks.  As the
-  currently active task changes, create new timesheet entries matching
-  the currently-active task.  This command runs forever until exited
-  using ``CTRL+C``.
-
-  If UDAs named ``ticket`` or ``pr`` are defined, will set the created
-  timesheet entry's ``ticket`` and ``pr`` fields to match those of the
-  ticket UDA values.
-
-  usage: ``t taskwarrior``
-
-  hooks: ``pre_watch_tasks_hook``, ``post_watch_tasks_hook``
-
-  aliases: *watch_tasks*, *task*
